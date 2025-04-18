@@ -99,21 +99,23 @@ export async function POST(request) {
     console.log('Updating user role to counselor for user_id:', application.user_id);
 
     // First, check if the user profile exists
-    const { data: userProfile, error: profileCheckError } = await supabase
-      .from('user_profiles')
-      .select('id, role')
-      .eq('id', application.user_id)
-      .single();
+   // Rename second occurrence of userProfile to avoid redeclaration
+  const { data: targetUserProfile, error: profileCheckError } = await supabase
+  .from('user_profiles')
+  .select('id, role')
+  .eq('id', application.user_id)
+  .single();
 
-    if (profileCheckError) {
-      console.error('Error checking user profile:', profileCheckError);
-      return NextResponse.json(
-        { error: 'Failed to find user profile' },
-        { status: 500 }
-      );
-    }
+if (profileCheckError) {
+  console.error('Error checking user profile:', profileCheckError);
+  return NextResponse.json(
+    { error: 'Failed to find user profile' },
+    { status: 500 }
+  );
+}
 
-    console.log('Found user profile:', userProfile);
+console.log('Found user profile:', targetUserProfile);
+
 
     // Update the user's role to counselor
     const { error: updateUserError } = await supabase
