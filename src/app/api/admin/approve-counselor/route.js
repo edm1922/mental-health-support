@@ -4,7 +4,6 @@ import { cookies } from 'next/headers';
 
 export async function POST(request) {
   try {
-    // Get the request body
     const { applicationId } = await request.json();
 
     if (!applicationId) {
@@ -14,10 +13,8 @@ export async function POST(request) {
       );
     }
 
-    // Initialize Supabase client
     const supabase = createRouteHandlerClient({ cookies });
 
-    // Verify the user is authenticated
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       return NextResponse.json(
@@ -26,44 +23,26 @@ export async function POST(request) {
       );
     }
 
-    // Verify the user is an admin
-    const { data: userProfile, error: profileError } = await supabase
+    const { data: currentUser, error: profileError } = await supabase
       .from('user_profiles')
       .select('role')
       .eq('id', session.user.id)
       .single();
 
-    if (profileError) {
-      console.error('Error fetching user profile:', profileError);
-      return NextResponse.json(
-        { error: 'Failed to verify admin status' },
-        { status: 500 }
-      );
-    }
-
-    if (userProfile?.role !== 'admin') {
+    if (profileError || currentUser?.role !== 'admin') {
       return NextResponse.json(
         { error: 'Only administrators can approve counselor applications' },
         { status: 403 }
       );
     }
 
-    // Get the application details
     const { data: application, error: applicationError } = await supabase
       .from('counselor_applications')
       .select('user_id, status')
       .eq('id', applicationId)
       .single();
 
-    if (applicationError) {
-      console.error('Error fetching application:', applicationError);
-      return NextResponse.json(
-        { error: 'Failed to fetch application details' },
-        { status: 500 }
-      );
-    }
-
-    if (!application) {
+    if (applicationError || !application) {
       return NextResponse.json(
         { error: 'Application not found' },
         { status: 404 }
@@ -77,8 +56,6 @@ export async function POST(request) {
       );
     }
 
-    // Start a transaction to update both the application and user profile
-    // First, update the application status
     const { error: updateAppError } = await supabase
       .from('counselor_applications')
       .update({
@@ -88,36 +65,25 @@ export async function POST(request) {
       .eq('id', applicationId);
 
     if (updateAppError) {
-      console.error('Error updating application:', updateAppError);
       return NextResponse.json(
         { error: 'Failed to update application status' },
         { status: 500 }
       );
     }
 
-    // Then, update the user's role to counselor
-    console.log('Updating user role to counselor for user_id:', application.user_id);
+    const { data: targetUserProfile, error: profileCheckError } = await supabase
+      .from('user_profiles')
+      .select('id, role')
+      .eq('id', application.user_id)
+      .single();
 
-    // First, check if the user profile exists
-   // Rename second occurrence of userProfile to avoid redeclaration
-  const { data: targetUserProfile, error: profileCheckError } = await supabase
-  .from('user_profiles')
-  .select('id, role')
-  .eq('id', application.user_id)
-  .single();
+    if (profileCheckError || !targetUserProfile) {
+      return NextResponse.json(
+        { error: 'User profile not found' },
+        { status: 500 }
+      );
+    }
 
-if (profileCheckError) {
-  console.error('Error checking user profile:', profileCheckError);
-  return NextResponse.json(
-    { error: 'Failed to find user profile' },
-    { status: 500 }
-  );
-}
-
-console.log('Found user profile:', targetUserProfile);
-
-
-    // Update the user's role to counselor
     const { error: updateUserError } = await supabase
       .from('user_profiles')
       .update({
@@ -127,56 +93,17 @@ console.log('Found user profile:', targetUserProfile);
       .eq('id', application.user_id);
 
     if (updateUserError) {
-      console.error('Error updating user role:', updateUserError);
-
-      // Try a direct SQL update as a fallback
       try {
-        // First check if the exec_sql function exists
-        try {
-          const { data: functionCheck, error: functionCheckError } = await supabase.rpc('exec_sql', {
-            sql: `SELECT 1;`
-          });
-
-          if (functionCheckError) {
-            console.error('exec_sql function does not exist or has an error:', functionCheckError);
-            // Create the function if it doesn't exist
-            const { data: createFunctionResult, error: createFunctionError } = await supabase.rpc('exec_sql', {
-              sql: `
-                CREATE OR REPLACE FUNCTION exec_sql(sql text)
-                RETURNS JSONB
-                LANGUAGE plpgsql
-                SECURITY DEFINER
-                AS $$
-                BEGIN
-                  EXECUTE sql;
-                  RETURN jsonb_build_object('success', true);
-                EXCEPTION WHEN OTHERS THEN
-                  RETURN jsonb_build_object(
-                    'success', false,
-                    'error', SQLERRM,
-                    'detail', SQLSTATE
-                  );
-                END;
-                $$;
-              `
-            });
-
-            console.log('Create function result:', createFunctionResult, 'Error:', createFunctionError);
-          }
-        } catch (functionError) {
-          console.error('Error checking exec_sql function:', functionError);
-        }
-
-        console.log('Attempting direct SQL update as fallback');
-        const { data: sqlResult, error: sqlError } = await supabase.rpc('exec_sql', {
-          sql: `UPDATE public.user_profiles SET role = 'counselor', updated_at = NOW() WHERE id = '${application.user_id}' RETURNING id, role;`
+        const { error: sqlError } = await supabase.rpc('exec_sql', {
+          sql: `
+            UPDATE public.user_profiles
+            SET role = 'counselor', updated_at = NOW()
+            WHERE id = '${application.user_id}'
+            RETURNING id, role;
+          `
         });
 
-        console.log('SQL update result:', sqlResult);
-
         if (sqlError) {
-          console.error('SQL update error:', sqlError);
-          // Attempt to rollback the application status update
           await supabase
             .from('counselor_applications')
             .update({
@@ -186,13 +113,11 @@ console.log('Found user profile:', targetUserProfile);
             .eq('id', applicationId);
 
           return NextResponse.json(
-            { error: 'Failed to update user role' },
+            { error: 'Direct SQL update failed' },
             { status: 500 }
           );
         }
-      } catch (sqlError) {
-        console.error('Error with SQL update:', sqlError);
-        // Attempt to rollback the application status update
+      } catch (err) {
         await supabase
           .from('counselor_applications')
           .update({
@@ -202,7 +127,7 @@ console.log('Found user profile:', targetUserProfile);
           .eq('id', applicationId);
 
         return NextResponse.json(
-          { error: 'Failed to update user role' },
+          { error: 'Failed to update user role: ' + err.message },
           { status: 500 }
         );
       }
@@ -212,10 +137,11 @@ console.log('Found user profile:', targetUserProfile);
       success: true,
       message: 'Counselor application approved successfully'
     });
+
   } catch (error) {
-    console.error('Error approving counselor application:', error);
+    console.error('Unhandled error:', error);
     return NextResponse.json(
-      { error: 'Failed to approve application: ' + error.message },
+      { error: 'Internal error: ' + error.message },
       { status: 500 }
     );
   }
