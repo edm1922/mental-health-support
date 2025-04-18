@@ -8,7 +8,7 @@ export async function POST() {
   try {
     // Initialize Supabase client
     const supabase = createRouteHandlerClient({ cookies });
-    
+
     // Verify the user is authenticated
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -23,7 +23,7 @@ export async function POST() {
       .from('discussion_posts')
       .select(`
         *,
-        author:user_profiles!discussion_posts_user_id_fkey(id, display_name, role)
+        user_profiles(id, display_name, role)
       `)
       .order('created_at', { ascending: false });
 
@@ -38,7 +38,8 @@ export async function POST() {
     // Format the posts to match the expected structure
     const formattedPosts = posts.map(post => ({
       ...post,
-      author_name: post.author?.display_name || 'Anonymous'
+      author_name: post.user_profiles?.display_name || 'Anonymous',
+      author_role: post.user_profiles?.role || 'user'
     }));
 
     return NextResponse.json({ posts: formattedPosts });

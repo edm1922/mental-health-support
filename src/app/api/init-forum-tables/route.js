@@ -8,7 +8,7 @@ export async function POST() {
   try {
     // Initialize Supabase client
     const supabase = createRouteHandlerClient({ cookies });
-    
+
     // Verify the user is authenticated
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -25,7 +25,7 @@ export async function POST() {
       .eq('table_schema', 'public')
       .eq('table_name', 'discussion_posts')
       .maybeSingle();
-      
+
     if (postsTableError) {
       console.error("Error checking discussion_posts table:", postsTableError);
       return NextResponse.json(
@@ -33,26 +33,26 @@ export async function POST() {
         { status: 500 }
       );
     }
-    
+
     // Create discussion_posts table if it doesn't exist
     if (!postsTableExists) {
       console.log("Creating discussion_posts table...");
       const { error: createPostsError } = await supabase.rpc('exec_sql', {
         sql: `
           CREATE TABLE public.discussion_posts (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            user_id UUID NOT NULL,
+            id SERIAL PRIMARY KEY,
+            user_id TEXT NOT NULL,
             title TEXT NOT NULL,
             content TEXT NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
           );
-          
+
           -- Add indexes for better performance
           CREATE INDEX IF NOT EXISTS discussion_posts_user_id_idx ON public.discussion_posts(user_id);
         `
       });
-      
+
       if (createPostsError) {
         console.error("Error creating discussion_posts table:", createPostsError);
         return NextResponse.json(
@@ -61,7 +61,7 @@ export async function POST() {
         );
       }
     }
-    
+
     // Check if discussion_comments table exists
     const { data: commentsTableExists, error: commentsTableError } = await supabase
       .from('information_schema.tables')
@@ -69,7 +69,7 @@ export async function POST() {
       .eq('table_schema', 'public')
       .eq('table_name', 'discussion_comments')
       .maybeSingle();
-      
+
     if (commentsTableError) {
       console.error("Error checking discussion_comments table:", commentsTableError);
       return NextResponse.json(
@@ -77,27 +77,26 @@ export async function POST() {
         { status: 500 }
       );
     }
-    
+
     // Create discussion_comments table if it doesn't exist
     if (!commentsTableExists) {
       console.log("Creating discussion_comments table...");
       const { error: createCommentsError } = await supabase.rpc('exec_sql', {
         sql: `
           CREATE TABLE public.discussion_comments (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            post_id UUID NOT NULL,
-            user_id UUID NOT NULL,
+            id SERIAL PRIMARY KEY,
+            post_id INTEGER NOT NULL,
+            user_id TEXT NOT NULL,
             content TEXT NOT NULL,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
           );
-          
+
           -- Add indexes for better performance
           CREATE INDEX IF NOT EXISTS discussion_comments_post_id_idx ON public.discussion_comments(post_id);
           CREATE INDEX IF NOT EXISTS discussion_comments_user_id_idx ON public.discussion_comments(user_id);
         `
       });
-      
+
       if (createCommentsError) {
         console.error("Error creating discussion_comments table:", createCommentsError);
         return NextResponse.json(
@@ -106,7 +105,7 @@ export async function POST() {
         );
       }
     }
-    
+
     return NextResponse.json({ success: true, message: "Forum tables initialized successfully!" });
   } catch (error) {
     console.error("Unexpected error in init-forum-tables API:", error);

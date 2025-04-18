@@ -8,7 +8,7 @@ export async function POST(request) {
   try {
     // Get the post ID from the request body
     const { id } = await request.json();
-    
+
     if (!id) {
       return NextResponse.json(
         { error: 'Post ID is required' },
@@ -18,7 +18,7 @@ export async function POST(request) {
 
     // Initialize Supabase client
     const supabase = createRouteHandlerClient({ cookies });
-    
+
     // Verify the user is authenticated
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -33,7 +33,7 @@ export async function POST(request) {
       .from('discussion_posts')
       .select(`
         *,
-        author:user_profiles!discussion_posts_user_id_fkey(id, display_name, role)
+        user_profiles(id, display_name, role)
       `)
       .eq('id', id)
       .single();
@@ -51,7 +51,7 @@ export async function POST(request) {
       .from('discussion_comments')
       .select(`
         *,
-        author:user_profiles!discussion_comments_user_id_fkey(id, display_name, role)
+        user_profiles(id, display_name, role)
       `)
       .eq('post_id', id)
       .order('created_at', { ascending: true });
@@ -67,12 +67,14 @@ export async function POST(request) {
     // Format the post and comments to match the expected structure
     const formattedPost = {
       ...post,
-      author_name: post.author?.display_name || 'Anonymous'
+      author_name: post.user_profiles?.display_name || 'Anonymous',
+      author_role: post.user_profiles?.role || 'user'
     };
 
     const formattedComments = comments.map(comment => ({
       ...comment,
-      author_name: comment.author?.display_name || 'Anonymous'
+      author_name: comment.user_profiles?.display_name || 'Anonymous',
+      author_role: comment.user_profiles?.role || 'user'
     }));
 
     return NextResponse.json({

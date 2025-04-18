@@ -2,6 +2,7 @@
 export const dynamicRoutes = [
   '/admin/dashboard',
   '/admin/counselor-applications',
+  '/admin/fix-database',
   '/book-session',
   '/checkin',
   '/community',

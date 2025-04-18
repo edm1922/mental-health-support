@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { useUser } from "@/utils/useUser";
 import { supabase } from "@/utils/supabaseClient";
 import Link from "next/link";
-import { initForumTables } from "./init-forum-tables";
+import { initForumTables as initForumTablesUtil } from "./init-forum-tables";
 
 export default function FixDatabasePage() {
   const { data: user, loading: userLoading } = useUser();
@@ -11,6 +11,7 @@ export default function FixDatabasePage() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [tableInfo, setTableInfo] = useState(null);
+  const [forumTablesInfo, setForumTablesInfo] = useState(null);
 
   const checkTableStructure = async () => {
     try {
@@ -151,13 +152,177 @@ export default function FixDatabasePage() {
     }
   };
 
+  const checkForumTables = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
+      setForumTablesInfo(null);
+
+      // Check if the discussion_posts table exists
+      const { data: postsTableExists, error: postsTableError } = await supabase
+        .from('information_schema.tables')
+        .select('table_name')
+        .eq('table_schema', 'public')
+        .eq('table_name', 'discussion_posts')
+        .single();
+
+      if (postsTableError && postsTableError.code !== 'PGRST116') {
+        throw new Error(`Error checking if discussion_posts table exists: ${postsTableError.message}`);
+      }
+
+      // Check if the discussion_comments table exists
+      const { data: commentsTableExists, error: commentsTableError } = await supabase
+        .from('information_schema.tables')
+        .select('table_name')
+        .eq('table_schema', 'public')
+        .eq('table_name', 'discussion_comments')
+        .single();
+
+      if (commentsTableError && commentsTableError.code !== 'PGRST116') {
+        throw new Error(`Error checking if discussion_comments table exists: ${commentsTableError.message}`);
+      }
+
+      let postsColumns = [];
+      let commentsColumns = [];
+
+      // If posts table exists, get its columns
+      if (postsTableExists) {
+        const { data: columns, error: columnsError } = await supabase
+          .from('information_schema.columns')
+          .select('column_name, data_type, is_nullable')
+          .eq('table_schema', 'public')
+          .eq('table_name', 'discussion_posts')
+          .order('ordinal_position');
+
+        if (columnsError) {
+          throw new Error(`Error checking discussion_posts table structure: ${columnsError.message}`);
+        }
+
+        postsColumns = columns;
+      }
+
+      // If comments table exists, get its columns
+      if (commentsTableExists) {
+        const { data: columns, error: columnsError } = await supabase
+          .from('information_schema.columns')
+          .select('column_name, data_type, is_nullable')
+          .eq('table_schema', 'public')
+          .eq('table_name', 'discussion_comments')
+          .order('ordinal_position');
+
+        if (columnsError) {
+          throw new Error(`Error checking discussion_comments table structure: ${columnsError.message}`);
+        }
+
+        commentsColumns = columns;
+      }
+
+      setForumTablesInfo({
+        postsExists: !!postsTableExists,
+        commentsExists: !!commentsTableExists,
+        postsColumns,
+        commentsColumns
+      });
+
+      setSuccess("Forum tables checked successfully.");
+    } catch (err) {
+      console.error("Error checking forum tables:", err);
+      setError(err.message || "Failed to check forum tables");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createTestPost = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
+
+      // Get the current user's ID
+      const userId = user.id;
+
+      // Create a test post
+      const { data: postData, error: postError } = await supabase
+        .from('discussion_posts')
+        .insert({
+          user_id: userId,
+          title: 'Test Post',
+          content: 'This is a test post created from the admin panel.'
+        })
+        .select();
+
+      if (postError) {
+        throw new Error(`Error creating test post: ${postError.message}`);
+      }
+
+      // Create a test comment
+      const { error: commentError } = await supabase
+        .from('discussion_comments')
+        .insert({
+          post_id: postData[0].id,
+          user_id: userId,
+          content: 'This is a test comment created from the admin panel.'
+        })
+        .select();
+
+      if (commentError) {
+        throw new Error(`Error creating test comment: ${commentError.message}`);
+      }
+
+      setSuccess(`Test post and comment created successfully with post ID: ${postData[0].id}`);
+      await checkForumTables();
+    } catch (err) {
+      console.error("Error creating test post:", err);
+      setError(err.message || "Failed to create test post");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const dropForumTables = async () => {
+    try {
+      if (!window.confirm(
+        "Are you sure you want to drop the forum tables? This will delete all posts and comments."
+      )) {
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
+
+      // Drop the existing tables
+      const { error: dropPostsError } = await supabase.rpc('exec_sql', {
+        sql: `DROP TABLE IF EXISTS public.discussion_comments; DROP TABLE IF EXISTS public.discussion_posts;`
+      });
+
+      if (dropPostsError) {
+        throw new Error(`Error dropping forum tables: ${dropPostsError.message}`);
+      }
+
+      setSuccess("Forum tables dropped successfully.");
+      setForumTablesInfo(null);
+    } catch (err) {
+      console.error("Error dropping forum tables:", err);
+      setError(err.message || "Failed to drop forum tables");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const initializeForumTables = async () => {
     try {
       setLoading(true);
       setError(null);
       setSuccess(null);
 
-      await initForumTables();
+      // Call the imported function to initialize forum tables
+      await initForumTablesUtil();
+
+      // After initializing, check the tables again
+      await checkForumTables();
 
       setSuccess("Forum tables initialized successfully!");
     } catch (err) {
@@ -265,6 +430,139 @@ export default function FixDatabasePage() {
                   {loading ? "Creating..." : "Create Test Session"}
                 </button>
               </div>
+            </div>
+
+            <div>
+              <h2 className="text-xl font-semibold text-gray-800 mb-2">Forum Tables</h2>
+              <p className="text-gray-600 mb-4">
+                Initialize or fix the forum tables (discussion_posts and discussion_comments).
+              </p>
+
+              <div className="flex space-x-4 mb-4">
+                <button
+                  onClick={checkForumTables}
+                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                  disabled={loading}
+                >
+                  {loading ? "Checking..." : "Check Forum Tables"}
+                </button>
+
+                <button
+                  onClick={initializeForumTables}
+                  className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                  disabled={loading}
+                >
+                  {loading ? "Initializing..." : "Initialize Forum Tables"}
+                </button>
+
+                <button
+                  onClick={createTestPost}
+                  className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                  disabled={loading || !forumTablesInfo?.postsExists}
+                >
+                  {loading ? "Creating..." : "Create Test Post"}
+                </button>
+
+                <button
+                  onClick={dropForumTables}
+                  className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                  disabled={loading}
+                >
+                  {loading ? "Dropping..." : "Drop Forum Tables"}
+                </button>
+              </div>
+
+              {forumTablesInfo && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-gray-800 mb-2">Forum Tables Information</h3>
+
+                  <div className="mb-4">
+                    <h4 className="font-medium text-gray-700">Discussion Posts Table</h4>
+                    {!forumTablesInfo.postsExists ? (
+                      <p className="text-red-600">Table does not exist.</p>
+                    ) : (
+                      <div>
+                        <p className="text-green-600 mb-2">Table exists with {forumTablesInfo.postsColumns.length} columns:</p>
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full bg-white">
+                            <thead>
+                              <tr>
+                                <th className="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                  Column Name
+                                </th>
+                                <th className="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                  Data Type
+                                </th>
+                                <th className="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                  Nullable
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {forumTablesInfo.postsColumns.map((column, index) => (
+                                <tr key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                                  <td className="py-2 px-4 border-b border-gray-200 text-sm">
+                                    {column.column_name}
+                                  </td>
+                                  <td className="py-2 px-4 border-b border-gray-200 text-sm">
+                                    {column.data_type}
+                                  </td>
+                                  <td className="py-2 px-4 border-b border-gray-200 text-sm">
+                                    {column.is_nullable === "YES" ? "Yes" : "No"}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <h4 className="font-medium text-gray-700">Discussion Comments Table</h4>
+                    {!forumTablesInfo.commentsExists ? (
+                      <p className="text-red-600">Table does not exist.</p>
+                    ) : (
+                      <div>
+                        <p className="text-green-600 mb-2">Table exists with {forumTablesInfo.commentsColumns.length} columns:</p>
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full bg-white">
+                            <thead>
+                              <tr>
+                                <th className="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                  Column Name
+                                </th>
+                                <th className="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                  Data Type
+                                </th>
+                                <th className="py-2 px-4 border-b border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                  Nullable
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {forumTablesInfo.commentsColumns.map((column, index) => (
+                                <tr key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                                  <td className="py-2 px-4 border-b border-gray-200 text-sm">
+                                    {column.column_name}
+                                  </td>
+                                  <td className="py-2 px-4 border-b border-gray-200 text-sm">
+                                    {column.data_type}
+                                  </td>
+                                  <td className="py-2 px-4 border-b border-gray-200 text-sm">
+                                    {column.is_nullable === "YES" ? "Yes" : "No"}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {tableInfo && (
                 <div className="bg-gray-50 p-4 rounded-lg">
