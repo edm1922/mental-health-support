@@ -4,6 +4,7 @@ import { useUser } from "@/utils/useUser";
 import { supabase } from "@/utils/supabaseClient";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import SessionMessaging from "@/components/SessionMessaging";
 
 export default function SessionDetailPage({ params }) {
   const { id: sessionId } = params;
@@ -31,23 +32,82 @@ export default function SessionDetailPage({ params }) {
     try {
       setLoading(true);
 
-      const { data, error } = await supabase
-        .from("counseling_sessions")
-        .select("*, counselor:counselor_id(*), client:patient_id(*)")
-        .eq("id", sessionId)
-        .single();
+      // First try with the relationship query
+      try {
+        const { data, error } = await supabase
+          .from("counseling_sessions")
+          .select("*, counselor:counselor_id(*), client:patient_id(*)")
+          .eq("id", sessionId)
+          .single();
 
-      if (error) {
-        throw error;
+        if (!error) {
+          // Check if user is either the counselor or client for this session
+          if (data.counselor_id !== user.id && data.patient_id !== user.id) {
+            throw new Error("You do not have permission to access this session");
+          }
+
+          setSession(data);
+          setNotes(data.notes || "");
+          setLoading(false);
+          return;
+        }
+
+        // If the error is related to the relationship, try without it
+        if (error.message.includes('relationship') || error.message.includes('schema cache')) {
+          console.log('Relationship error, trying without relationship query');
+          throw new Error('Relationship error');
+        } else {
+          throw error;
+        }
+      } catch (relationshipError) {
+        // If there was a relationship error, try without the relationship query
+        const { data, error } = await supabase
+          .from("counseling_sessions")
+          .select("*")
+          .eq("id", sessionId)
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        // Check if user is either the counselor or client for this session
+        if (data.counselor_id !== user.id && data.patient_id !== user.id) {
+          throw new Error("You do not have permission to access this session");
+        }
+
+        // Fetch counselor and client details separately
+        let counselorData = null;
+        let clientData = null;
+
+        if (data.counselor_id) {
+          const { data: counselor } = await supabase
+            .from("user_profiles")
+            .select("*")
+            .eq("id", data.counselor_id)
+            .single();
+          counselorData = counselor;
+        }
+
+        if (data.patient_id) {
+          const { data: client } = await supabase
+            .from("user_profiles")
+            .select("*")
+            .eq("id", data.patient_id)
+            .single();
+          clientData = client;
+        }
+
+        // Combine the data
+        const sessionWithProfiles = {
+          ...data,
+          counselor: counselorData,
+          client: clientData
+        };
+
+        setSession(sessionWithProfiles);
+        setNotes(data.notes || "");
       }
-
-      // Check if user is either the counselor or client for this session
-      if (data.counselor_id !== user.id && data.patient_id !== user.id) {
-        throw new Error("You do not have permission to access this session");
-      }
-
-      setSession(data);
-      setNotes(data.notes || "");
     } catch (err) {
       console.error("Error fetching session:", err);
       setError(err.message || "Failed to load session details");
@@ -304,6 +364,16 @@ export default function SessionDetailPage({ params }) {
               </div>
             </div>
           )}
+
+          {/* Messaging Component */}
+          <div className="mt-6">
+            <SessionMessaging
+              sessionId={sessionId}
+              counselorId={session.counselor_id}
+              patientId={session.patient_id}
+              otherPersonName={otherParticipant?.display_name || "other participant"}
+            />
+          </div>
 
           {/* Session Notes - Only editable by counselor */}
           <div className="mt-6">

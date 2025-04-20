@@ -160,26 +160,28 @@ export default function FixDatabasePage() {
       setForumTablesInfo(null);
 
       // Check if the discussion_posts table exists
-      const { data: postsTableExists, error: postsTableError } = await supabase
-        .from('information_schema.tables')
-        .select('table_name')
-        .eq('table_schema', 'public')
-        .eq('table_name', 'discussion_posts')
-        .single();
+      const { data: postsTableExists, error: postsTableError } = await supabase.rpc('exec_sql', {
+        sql: `SELECT EXISTS (
+          SELECT FROM pg_tables
+          WHERE schemaname = 'public'
+          AND tablename = 'discussion_posts'
+        );`
+      });
 
-      if (postsTableError && postsTableError.code !== 'PGRST116') {
+      if (postsTableError) {
         throw new Error(`Error checking if discussion_posts table exists: ${postsTableError.message}`);
       }
 
       // Check if the discussion_comments table exists
-      const { data: commentsTableExists, error: commentsTableError } = await supabase
-        .from('information_schema.tables')
-        .select('table_name')
-        .eq('table_schema', 'public')
-        .eq('table_name', 'discussion_comments')
-        .single();
+      const { data: commentsTableExists, error: commentsTableError } = await supabase.rpc('exec_sql', {
+        sql: `SELECT EXISTS (
+          SELECT FROM pg_tables
+          WHERE schemaname = 'public'
+          AND tablename = 'discussion_comments'
+        );`
+      });
 
-      if (commentsTableError && commentsTableError.code !== 'PGRST116') {
+      if (commentsTableError) {
         throw new Error(`Error checking if discussion_comments table exists: ${commentsTableError.message}`);
       }
 
@@ -187,7 +189,8 @@ export default function FixDatabasePage() {
       let commentsColumns = [];
 
       // If posts table exists, get its columns
-      if (postsTableExists) {
+      const postsExists = postsTableExists && postsTableExists.data && postsTableExists.data[0] && postsTableExists.data[0].exists;
+      if (postsExists) {
         const { data: columns, error: columnsError } = await supabase
           .from('information_schema.columns')
           .select('column_name, data_type, is_nullable')
@@ -203,7 +206,8 @@ export default function FixDatabasePage() {
       }
 
       // If comments table exists, get its columns
-      if (commentsTableExists) {
+      const commentsExists = commentsTableExists && commentsTableExists.data && commentsTableExists.data[0] && commentsTableExists.data[0].exists;
+      if (commentsExists) {
         const { data: columns, error: columnsError } = await supabase
           .from('information_schema.columns')
           .select('column_name, data_type, is_nullable')
@@ -219,8 +223,8 @@ export default function FixDatabasePage() {
       }
 
       setForumTablesInfo({
-        postsExists: !!postsTableExists,
-        commentsExists: !!commentsTableExists,
+        postsExists,
+        commentsExists,
         postsColumns,
         commentsColumns
       });

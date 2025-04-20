@@ -11,6 +11,7 @@ export default function SessionsPage() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [unreadMessages, setUnreadMessages] = useState({});
 
   useEffect(() => {
     if (!userLoading && !user) {
@@ -23,6 +24,63 @@ export default function SessionsPage() {
       fetchSessions();
     }
   }, [user]);
+
+  // Fetch unread message counts for each session
+  useEffect(() => {
+    if (user && sessions.length > 0) {
+      fetchUnreadMessageCounts();
+    }
+  }, [user, sessions]);
+
+  // Fetch unread message counts for all sessions
+  const fetchUnreadMessageCounts = async () => {
+    try {
+      // Create a temporary object to store counts
+      const counts = {};
+
+      // Check if the session_messages table exists
+      const { data: tableExists, error: tableCheckError } = await supabase
+        .from('information_schema.tables')
+        .select('table_name')
+        .eq('table_name', 'session_messages')
+        .eq('table_schema', 'public')
+        .single();
+
+      if (tableCheckError || !tableExists) {
+        console.log('Messages table does not exist yet');
+        return;
+      }
+
+      // For each session, get the unread message count
+      for (const session of sessions) {
+        try {
+          const response = await fetch(`/api/counseling/messages/unread-count?sessionId=${session.id}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.count > 0) {
+              counts[session.id] = data.count;
+            }
+          }
+        } catch (err) {
+          console.error(`Error fetching unread count for session ${session.id}:`, err);
+          // Continue with other sessions
+        }
+      }
+
+      // Update state with all counts at once
+      setUnreadMessages(counts);
+    } catch (err) {
+      console.error('Error fetching unread message counts:', err);
+      // Don't set error state as this is not critical
+    }
+  };
 
   const fetchSessions = async () => {
     try {
@@ -215,10 +273,17 @@ export default function SessionsPage() {
                                   {formattedDate} at {formattedTime}
                                 </span>
                               </div>
-                              <h3 className="mt-2 text-lg font-medium text-gray-800">
-                                Session with{" "}
-                                {otherPerson?.display_name || "Unknown"}
-                              </h3>
+                              <div className="mt-2 flex items-center">
+                                <h3 className="text-lg font-medium text-gray-800">
+                                  Session with{" "}
+                                  {otherPerson?.display_name || "Unknown"}
+                                </h3>
+                                {unreadMessages[session.id] > 0 && (
+                                  <span className="ml-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                    {unreadMessages[session.id]} new message{unreadMessages[session.id] > 1 ? 's' : ''}
+                                  </span>
+                                )}
+                              </div>
                               {session.notes && (
                                 <p className="mt-1 text-sm text-gray-600">
                                   {session.notes}
@@ -236,9 +301,14 @@ export default function SessionsPage() {
                               )}
                               <Link
                                 href={`/counseling/session/${session.id}`}
-                                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
+                                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50 flex items-center"
                               >
-                                View Details
+                                <span>View Details</span>
+                                {unreadMessages[session.id] > 0 && (
+                                  <span className="ml-1 bg-red-500 text-white text-xs font-bold px-1.5 rounded-full">
+                                    {unreadMessages[session.id]}
+                                  </span>
+                                )}
                               </Link>
                             </div>
                           </div>
@@ -282,16 +352,28 @@ export default function SessionsPage() {
                                   {formattedDate} at {formattedTime}
                                 </span>
                               </div>
-                              <h3 className="mt-2 text-lg font-medium text-gray-700">
-                                Session with{" "}
-                                {otherPerson?.display_name || "Unknown"}
-                              </h3>
+                              <div className="mt-2 flex items-center">
+                                <h3 className="text-lg font-medium text-gray-700">
+                                  Session with{" "}
+                                  {otherPerson?.display_name || "Unknown"}
+                                </h3>
+                                {unreadMessages[session.id] > 0 && (
+                                  <span className="ml-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                    {unreadMessages[session.id]} new message{unreadMessages[session.id] > 1 ? 's' : ''}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             <Link
                               href={`/counseling/session/${session.id}`}
-                              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
+                              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50 flex items-center"
                             >
-                              View Summary
+                              <span>View Summary</span>
+                              {unreadMessages[session.id] > 0 && (
+                                <span className="ml-1 bg-red-500 text-white text-xs font-bold px-1.5 rounded-full">
+                                  {unreadMessages[session.id]}
+                                </span>
+                              )}
                             </Link>
                           </div>
                         </div>

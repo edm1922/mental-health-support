@@ -19,68 +19,145 @@ export async function POST(request) {
     // Initialize Supabase client
     const supabase = createRouteHandlerClient({ cookies });
 
-    // Verify the user is authenticated
+    // Get the session if available (not required for viewing posts)
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
+    console.log('Session:', session ? 'User is authenticated' : 'No session');
 
-    // Fetch the post with author information
-    const { data: post, error: postError } = await supabase
-      .from('discussion_posts')
-      .select(`
-        *,
-        user_profiles(id, display_name, role)
-      `)
-      .eq('id', id)
-      .single();
+    // Check if the discussion_posts table exists
+    const { data: tableExists, error: tableCheckError } = await supabase.rpc('exec_sql', {
+      sql: `SELECT EXISTS (
+        SELECT FROM pg_tables
+        WHERE schemaname = 'public'
+        AND tablename = 'discussion_posts'
+      );`
+    });
 
-    if (postError) {
-      console.error('Error fetching post:', postError);
+    if (tableCheckError) {
+      console.error('Error checking if discussion_posts table exists:', tableCheckError);
       return NextResponse.json(
-        { error: 'Failed to fetch post' },
+        { error: 'Error checking if forum tables exist' },
         { status: 500 }
       );
     }
 
-    // Fetch comments for the post
-    const { data: comments, error: commentsError } = await supabase
-      .from('discussion_comments')
-      .select(`
-        *,
-        user_profiles(id, display_name, role)
-      `)
-      .eq('post_id', id)
-      .order('created_at', { ascending: true });
+    // If table doesn't exist, try to initialize it by calling the posts endpoint
+    if (!tableExists || !tableExists.data || !tableExists.data[0] || !tableExists.data[0].exists) {
+      console.log('Discussion posts table does not exist, initializing...');
 
-    if (commentsError) {
-      console.error('Error fetching comments:', commentsError);
-      return NextResponse.json(
-        { error: 'Failed to fetch comments' },
-        { status: 500 }
-      );
+      // Call the posts endpoint to initialize the tables
+      const initResponse = await fetch(new URL('/api/forum/posts', request.url).toString());
+
+      if (!initResponse.ok) {
+        return NextResponse.json(
+          { error: 'Failed to initialize forum tables. Please try again.' },
+          { status: 500 }
+        );
+      }
+
+      console.log('Tables initialized successfully');
     }
 
-    // Format the post and comments to match the expected structure
+    // Fetch the post using direct SQL
+    try {
+      const { data: postResult, error: postError } = await supabase.rpc('exec_sql', {
+        sql: `SELECT id, user_id, title, content, created_at, updated_at
+              FROM public.discussion_posts
+              WHERE id = ${id};`
+      });
+
+      if (postError) {
+        console.error('Error fetching post:', postError);
+        return NextResponse.json(
+          { error: 'Failed to fetch post: ' + postError.message },
+          { status: 500 }
+        );
+      }
+
+      console.log('Post query result:', postResult);
+
+      // Handle different possible formats of the result
+      let post = null;
+
+      if (postResult && Array.isArray(postResult) && postResult.length > 0) {
+        post = postResult[0];
+      } else if (postResult && typeof postResult === 'object') {
+        post = postResult;
+      }
+
+      if (!post) {
+        console.error('Post not found or invalid format:', postResult);
+        return NextResponse.json(
+          { error: 'Post not found or invalid format' },
+          { status: 404 }
+        );
+      }
+
+      // Fetch comments for the post using direct SQL
+      const { data: commentsResult, error: commentsError } = await supabase.rpc('exec_sql', {
+        sql: `SELECT id, post_id, user_id, content, created_at
+              FROM public.discussion_comments
+              WHERE post_id = ${id}
+              ORDER BY created_at ASC;`
+      });
+
+      if (commentsError) {
+        console.error('Error fetching comments:', commentsError);
+        return NextResponse.json(
+          { error: 'Failed to fetch comments: ' + commentsError.message },
+          { status: 500 }
+        );
+      }
+
+      console.log('Comments query result:', commentsResult);
+
+      // Handle different possible formats of the comments result
+      let comments = [];
+
+      if (commentsResult && Array.isArray(commentsResult)) {
+        comments = commentsResult;
+      } else if (commentsResult && Array.isArray(commentsResult.data)) {
+        comments = commentsResult.data;
+      } else if (commentsResult && typeof commentsResult === 'object') {
+        comments = [commentsResult];
+      }
+
+    // Format the post with safe access to properties
     const formattedPost = {
-      ...post,
-      author_name: post.user_profiles?.display_name || 'Anonymous',
-      author_role: post.user_profiles?.role || 'user'
+      id: post.id || 0,
+      user_id: post.user_id || 'anonymous',
+      title: post.title || 'Untitled Post',
+      content: post.content || 'No content',
+      created_at: post.created_at || new Date().toISOString(),
+      updated_at: post.updated_at || new Date().toISOString(),
+      author_name: 'Anonymous',
+      author_role: 'user'
     };
 
+    // Format the comments with safe access to properties
     const formattedComments = comments.map(comment => ({
-      ...comment,
-      author_name: comment.user_profiles?.display_name || 'Anonymous',
-      author_role: comment.user_profiles?.role || 'user'
+      id: comment.id || 0,
+      post_id: comment.post_id || id,
+      user_id: comment.user_id || 'anonymous',
+      content: comment.content || 'No comment',
+      created_at: comment.created_at || new Date().toISOString(),
+      author_name: 'Anonymous',
+      author_role: 'user'
     }));
+
+    console.log('Returning formatted post:', formattedPost);
+    console.log('Returning formatted comments:', formattedComments);
 
     return NextResponse.json({
       post: formattedPost,
       comments: formattedComments
     });
+  } catch (sqlError) {
+    console.error('SQL error in post API:', sqlError);
+    return NextResponse.json(
+      { error: 'SQL error: ' + sqlError.message },
+      { status: 500 }
+    );
+  }
   } catch (error) {
     console.error('Unexpected error in post API:', error);
     return NextResponse.json(

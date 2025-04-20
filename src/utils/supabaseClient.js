@@ -26,6 +26,25 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    storageKey: 'supabase.auth.token',
+    storage: {
+      getItem: (key) => {
+        if (typeof window === 'undefined') return null;
+        const value = localStorage.getItem(key);
+        console.log(`Getting auth from storage: ${key} = ${value ? 'exists' : 'not found'}`);
+        return value;
+      },
+      setItem: (key, value) => {
+        if (typeof window === 'undefined') return;
+        console.log(`Setting auth in storage: ${key}`);
+        localStorage.setItem(key, value);
+      },
+      removeItem: (key) => {
+        if (typeof window === 'undefined') return;
+        console.log(`Removing auth from storage: ${key}`);
+        localStorage.removeItem(key);
+      },
+    },
   },
   realtime: {
     timeout: 30000, // 30 seconds

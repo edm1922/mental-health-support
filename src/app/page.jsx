@@ -1,16 +1,35 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { useUser } from '../utils/useUser'; // Import the useUser hook
-import { useAuth } from '../utils/useAuth'; // Import the useAuth hook
-import { supabase } from '../utils/supabaseClient'; // Import the supabase client
+import { useUser } from '../utils/useUser';
+import { useAuth } from '../utils/useAuth';
+import { supabase } from '../utils/supabaseClient';
 import CounselorSection, { CounselorApplicationSection } from '../components/CounselorSection';
 import RoleBasedActionCards from '../components/RoleBasedActionCards';
+import DatabaseSchemaCheck from '../components/DatabaseSchemaCheck';
+import QuotePopupProvider from '../components/QuotePopupProvider';
+import { useRouter } from 'next/navigation';
+import Navbar from '../components/ui/Navbar';
+import Hero from '../components/ui/Hero';
+import Footer from '../components/ui/Footer';
+import { Button } from '../components/ui/Button';
 
 function MainComponent() {
-  const { user } = useUser(); // Correctly access the user property
+  const router = useRouter();
+  const { data: user } = useUser();
   const { signOut } = useAuth();
   const [profileData, setProfileData] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [scrollY, setScrollY] = useState(0);
+
+  // Track scroll position for animations
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrollY(window.scrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     async function loadProfile() {
@@ -56,6 +75,15 @@ function MainComponent() {
             console.log('Profile data loaded:', data);
             setProfileData(data);
 
+            // Redirect based on user role
+            if (data.role === "admin") {
+              router.push('/admin');
+              return;
+            } else if (data.role === "counselor") {
+              router.push('/counselor');
+              return;
+            }
+
             // If user is admin, fetch applications with correct endpoint
             if (data.role === "admin") {
               const applicationsResponse = await fetch(
@@ -86,7 +114,7 @@ function MainComponent() {
       }
     }
     loadProfile();
-  }, [user]);
+  }, [user, router]);
 
   const handleSignOut = async () => {
     await signOut({
@@ -99,176 +127,44 @@ function MainComponent() {
     return user ? path : `/account/signin?callbackUrl=${path}`;
   };
 
+  // Activate reveal animations on scroll
+  useEffect(() => {
+    const handleRevealElements = () => {
+      const reveals = document.querySelectorAll('.reveal');
+
+      reveals.forEach(element => {
+        const elementTop = element.getBoundingClientRect().top;
+        const elementVisible = 150;
+
+        if (elementTop < window.innerHeight - elementVisible) {
+          element.classList.add('active');
+        }
+      });
+    };
+
+    window.addEventListener('scroll', handleRevealElements);
+    handleRevealElements(); // Initial check
+
+    return () => window.removeEventListener('scroll', handleRevealElements);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      <nav className="bg-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex-shrink-0 flex items-center">
-              <a href="/" className="text-xl font-bold text-indigo-600">
-                Mental Health Support
-              </a>
-            </div>
+    <div className="min-h-screen bg-white">
+      {/* Database schema check component - runs on page load */}
+      <DatabaseSchemaCheck />
 
-            <div className="flex items-center">
-              {user ? (
-                <div className="relative">
-                  <button
-                    onClick={() => setShowDropdown(!showDropdown)}
-                    className="flex items-center space-x-3 focus:outline-none"
-                  >
-                    <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 border-2 border-indigo-600">
-                      {profileData?.image_url ? (
-                        <img
-                          src={profileData.image_url}
-                          alt="Profile"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <svg
-                          className="h-full w-full text-gray-400 p-2"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                          />
-                        </svg>
-                      )}
-                    </div>
-                    <span className="hidden md:block text-gray-700">
-                      {profileData?.display_name || user.email}
-                    </span>
-                    <svg
-                      className="h-5 w-5 text-gray-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
+      {/* Modern Navbar */}
+      <Navbar transparent />
 
-                  {showDropdown && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
-                      <a
-                        href="/profile"
-                        className="block px-4 py-2 border-b hover:bg-gray-100"
-                      >
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {profileData?.display_name || user.email}
-                        </p>
-                        <p className="text-sm text-gray-500 truncate">
-                          {profileData?.bio || "No bio yet"}
-                        </p>
-                      </a>
-                      {profileData?.role === "admin" && (
-                        <>
-                          <a
-                            href="/admin/dashboard"
-                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            Admin Dashboard
-                          </a>
-                          <a
-                            href="/admin/create-counselor"
-                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            Create Counselor
-                          </a>
-                          <a
-                            href="/admin/create-test-session"
-                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            Create Test Session
-                          </a>
-                          <a
-                            href="/admin/view-all-sessions"
-                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            View All Sessions
-                          </a>
-                          <a
-                            href="/admin/fix-database"
-                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            Fix Database
-                          </a>
-                        </>
-                      )}
-                      {profileData?.role === "counselor" && (
-                        <a
-                          href="/counselor/sessions"
-                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        >
-                          Counselor Sessions
-                        </a>
-                      )}
-                      <a
-                        href="/checkin"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        My Check-ins
-                      </a>
-                      <button
-                        onClick={handleSignOut}
-                        className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                      >
-                        Sign Out
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="flex space-x-4">
-                  {!user && (
-                    <>
-                      <a
-                        href="/account/signin"
-                        className="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium"
-                      >
-                        Sign In
-                      </a>
-                      <a
-                        href="/account/signup"
-                        className="bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-md text-sm font-medium"
-                      >
-                        Sign Up
-                      </a>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
+      {/* Hero Section */}
+      <Hero
+        tagline="You're not alone"
+        title="Take a Step Toward Feeling Better"
+        subtitle="Talk to a counselor, check in with yourself, or connect with others who care."
+        image="/images/hero-illustration.svg"
+      />
 
-      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-24 sm:px-8 sm:py-32">
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMtNi42MjcgMC0xMiA1LjM3My0xMiAxMnM1LjM3MyAxMiAxMiAxMi01LjM3MyAxMi0xMi01LjM3My0xMi0xMi0xMnptLTEyLTJjLTcuNzMyIDAtMTQgNi4yNjgtMTQgMTRzNi4yNjggMTQgMTQgMTQgMTQtNi4yNjggMTQtMTQtNi4yNjgtMTQtMTQtMTR6IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9Ii4xIi8+PC9nPjwvc3ZnPg==')] opacity-10"></div>
-        </div>
-        <div className="relative mx-auto max-w-4xl text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl">
-            Welcome to Mental Health Support
-          </h1>
-          <p className="mt-6 text-lg leading-8 text-gray-100">
-            Your journey to better mental health starts here. Connect with
-            professional counselors and find the support you need.
-          </p>
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-7xl px-6 py-12 sm:px-8">
+      <div className="mx-auto max-w-7xl px-6 sm:px-8">
         {/* Counselor Section - Only visible to counselors */}
         <CounselorSection />
 
@@ -278,109 +174,109 @@ function MainComponent() {
         {/* Role-based action cards */}
         <RoleBasedActionCards userRole={profileData?.role || 'user'} />
 
-        {/* Removed the counselor application section as it's now a component */}
-
-        <div className="mt-16">
-          <h2 className="mb-8 text-center text-3xl font-bold text-gray-900">
-            Educational Resources
+        {/* Mental Health Resources Section */}
+        <div id="resources" className="py-16 reveal">
+          <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center font-heading">
+            Mental Health Resources
           </h2>
-          <div className="grid gap-8 md:grid-cols-2">
-            <div className="rounded-xl bg-white p-6 shadow-lg">
-              <div className="mb-4 inline-block rounded-full bg-green-100 p-3 text-green-600">
-                <svg
-                  className="h-6 w-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                  ></path>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="bg-blue-50/70 rounded-2xl shadow-soft p-6 transition-all duration-300 hover:shadow-xl hover:scale-[1.03] group reveal" style={{ transitionDelay: '0.1s' }}>
+              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 text-primary-600 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-primary-100/50 group-hover:bg-primary-200">
+                <svg className="h-6 w-6 transition-transform duration-300 group-hover:rotate-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                 </svg>
               </div>
-              <h3 className="mb-2 text-xl font-semibold text-gray-900">
-                Mental Health Basics
+              <h3 className="text-xl font-semibold text-gray-900 mb-3 font-heading transition-colors duration-300 group-hover:text-primary-700">
+                Anxiety Management
               </h3>
-              <p className="text-gray-600">
-                Learn about mental health fundamentals and self-care practices.
+              <p className="text-gray-600 transition-colors duration-300 group-hover:text-gray-700">
+                Learn techniques to manage anxiety and reduce stress in daily life.
               </p>
+              <Button href="/resources/anxiety" variant="link" className="mt-4 transition-all duration-300 group-hover:translate-x-1">
+                Learn more
+              </Button>
             </div>
-            <div className="rounded-xl bg-white p-6 shadow-lg">
-              <div className="mb-4 inline-block rounded-full bg-yellow-100 p-3 text-yellow-600">
-                <svg
-                  className="h-6 w-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                  ></path>
+
+            <div className="bg-purple-50/70 rounded-2xl shadow-soft p-6 transition-all duration-300 hover:shadow-xl hover:scale-[1.03] group reveal" style={{ transitionDelay: '0.2s' }}>
+              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-secondary-100 text-secondary-600 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-secondary-100/50 group-hover:bg-secondary-200">
+                <svg className="h-6 w-6 transition-transform duration-300 group-hover:rotate-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
                 </svg>
               </div>
-              <h3 className="mb-2 text-xl font-semibold text-gray-900">
+              <h3 className="text-xl font-semibold text-gray-900 mb-3 font-heading transition-colors duration-300 group-hover:text-secondary-700">
+                Depression Resources
+              </h3>
+              <p className="text-gray-600 transition-colors duration-300 group-hover:text-gray-700">
+                Find support and strategies for dealing with depression.
+              </p>
+              <Button href="/resources/depression" variant="link" className="mt-4 transition-all duration-300 group-hover:translate-x-1">
+                Learn more
+              </Button>
+            </div>
+
+            <div className="bg-green-50/70 rounded-2xl shadow-soft p-6 transition-all duration-300 hover:shadow-xl hover:scale-[1.03] group reveal" style={{ transitionDelay: '0.3s' }}>
+              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-accent-100 text-accent-600 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-accent-100/50 group-hover:bg-accent-200">
+                <svg className="h-6 w-6 transition-transform duration-300 group-hover:rotate-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3 font-heading transition-colors duration-300 group-hover:text-accent-700">
                 Coping Strategies
               </h3>
-              <p className="text-gray-600">
+              <p className="text-gray-600 transition-colors duration-300 group-hover:text-gray-700">
                 Discover effective techniques for managing stress and anxiety.
+              </p>
+              <Button href="/resources/coping" variant="link" className="mt-4 transition-all duration-300 group-hover:translate-x-1">
+                Learn more
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Testimonials Section */}
+        <div className="py-16 reveal">
+          <h2 className="text-3xl font-bold text-gray-900 mb-12 text-center font-heading">
+            What Our Users Say
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="bg-gradient-to-br from-primary-50 to-secondary-50 rounded-2xl shadow-soft p-8 reveal" style={{ transitionDelay: '0.1s' }}>
+              <div className="flex items-center mb-4">
+                <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 mr-4">
+                  <span className="text-lg font-bold">S</span>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900">Sarah M.</h4>
+                  <p className="text-sm text-gray-600">User for 6 months</p>
+                </div>
+              </div>
+              <p className="text-gray-700 italic">
+                "The daily check-ins have helped me become more aware of my emotional patterns. The counselors are supportive and professional. I'm grateful for this platform."
+              </p>
+            </div>
+
+            <div className="bg-gradient-to-br from-secondary-50 to-accent-50 rounded-2xl shadow-soft p-8 reveal" style={{ transitionDelay: '0.2s' }}>
+              <div className="flex items-center mb-4">
+                <div className="h-12 w-12 rounded-full bg-secondary-100 flex items-center justify-center text-secondary-600 mr-4">
+                  <span className="text-lg font-bold">J</span>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900">James T.</h4>
+                  <p className="text-sm text-gray-600">User for 3 months</p>
+                </div>
+              </div>
+              <p className="text-gray-700 italic">
+                "Finding a counselor who understands my specific challenges was easy with this platform. The community forum has also been a great source of support."
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      <footer className="mt-16 bg-gray-900 px-6 py-12 text-center text-gray-300">
-        <div className="mb-4 flex justify-center space-x-6">
-          <a href="/supabase-test" className="text-blue-400 hover:text-blue-300 underline">Database Connection Test</a>
-          {profileData?.role === "admin" && (
-            <>
-              <a href="/admin/create-counselor" className="text-blue-400 hover:text-blue-300 underline">Create Counselor</a>
-              <a href="/admin/create-test-session" className="text-blue-400 hover:text-blue-300 underline">Create Test Session</a>
-              <a href="/admin/view-all-sessions" className="text-blue-400 hover:text-blue-300 underline">View All Sessions</a>
-              <a href="/admin/fix-database" className="text-blue-400 hover:text-blue-300 underline">Fix Database</a>
-            </>
-          )}
-        </div>
-        <p>© 2025 Mental Health Support. All rights reserved.</p>
-      </footer>
+      {/* Modern Footer */}
+      <Footer />
 
-      <style jsx global>{`
-        @keyframes floatIn {
-          0% {
-            opacity: 0;
-            transform: scale(0.95) translateY(-10px);
-          }
-          100% {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-        }
-
-        @keyframes floatOut {
-          0% {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-          100% {
-            opacity: 0;
-            transform: scale(0.95) translateY(-10px);
-          }
-        }
-
-        .quote-float-in {
-          animation: floatIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-        }
-
-        .quote-float-out {
-          animation: floatOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-        }
-      `}</style>
+      {/* Quote Popup */}
+      <QuotePopupProvider />
     </div>
   );
 }

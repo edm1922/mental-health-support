@@ -3,6 +3,9 @@ import React, { useState } from 'react';
 import { useAuth } from '@/utils/useAuth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import Navbar from '@/components/ui/Navbar';
 
 const SignUp = () => {
   const { signUp } = useAuth();
@@ -106,88 +109,112 @@ const SignUp = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-6 rounded shadow-md w-96">
-        <h2 className="text-2xl font-bold mb-4">Create Account</h2>
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 flex flex-col">
+      <Navbar />
 
-        {success ? (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-            <p>Account created successfully! Redirecting to sign in...</p>
-          </div>
-        ) : (
-          <>
-            {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                <p>{error}</p>
+      <div className="flex-grow flex items-center justify-center px-4 py-12">
+        <Card className="w-full max-w-md animate-fade-in">
+          <CardHeader>
+            <h2 className="text-2xl font-bold text-gray-900 font-heading">Create Your Account</h2>
+            <p className="text-gray-600">Join our mental health support community</p>
+          </CardHeader>
+
+          <CardContent>
+            {success ? (
+              <div className="p-4 rounded-xl bg-accent-50 border border-accent-200 text-accent-700 animate-pulse-slow">
+                <p className="font-medium">Account created successfully!</p>
+                <p className="text-sm mt-1">Redirecting to sign in page...</p>
               </div>
+            ) : (
+              <>
+                {error && (
+                  <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-600">
+                    <p>{error}</p>
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
+                    <input
+                      type="text"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                      placeholder="Your name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                      placeholder="you@example.com"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      minLength={6}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                      placeholder="••••••••"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Must be at least 6 characters</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      minLength={6}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                      placeholder="••••••••"
+                    />
+                  </div>
+
+                  <div className="pt-2">
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="lg"
+                      fullWidth
+                      loading={loading}
+                      disabled={loading}
+                    >
+                      {loading ? 'Creating Account...' : 'Create Account'}
+                    </Button>
+                  </div>
+                </form>
+              </>
             )}
+          </CardContent>
 
-            <form onSubmit={handleSubmit}>
-              <div className="mb-4">
-                <label className="block text-gray-700">Display Name</label>
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  required
-                  className="border rounded w-full py-2 px-3"
-                />
-              </div>
+          <CardFooter className="text-center border-t border-gray-100 pt-6">
+            <p className="text-gray-600">
+              Already have an account?{' '}
+              <Link href="/account/signin" className="text-primary-600 hover:text-primary-800 font-medium">
+                Sign in
+              </Link>
+            </p>
+          </CardFooter>
+        </Card>
+      </div>
 
-              <div className="mb-4">
-                <label className="block text-gray-700">Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="border rounded w-full py-2 px-3"
-                />
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-gray-700">Password</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  className="border rounded w-full py-2 px-3"
-                />
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-gray-700">Confirm Password</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  className="border rounded w-full py-2 px-3"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="bg-blue-600 text-white rounded py-2 px-4 w-full disabled:opacity-50"
-              >
-                {loading ? 'Creating Account...' : 'Sign Up'}
-              </button>
-            </form>
-
-            <div className="mt-4 text-center">
-              <p className="text-gray-600">
-                Already have an account?{' '}
-                <Link href="/account/signin" className="text-blue-600 hover:underline">
-                  Sign In
-                </Link>
-              </p>
-            </div>
-          </>
-        )}
+      <div className="py-4 text-center text-gray-500 text-sm">
+        <p>© {new Date().getFullYear()} Mental Health Support. All rights reserved.</p>
       </div>
     </div>
   );

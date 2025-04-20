@@ -4,6 +4,18 @@ import { useUser } from "@/utils/useUser";
 import { supabase } from "@/utils/supabaseClient";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import {
+  GlassContainer,
+  GlassCard,
+  BackButton,
+  ModernButton,
+  ModernTextarea,
+  ModernHeading,
+  ModernAlert,
+  ModernEmoji,
+  ModernCard,
+  ModernSpinner
+} from "@/components/ui/ModernUI";
 
 function MainComponent() {
   const router = useRouter();
@@ -117,153 +129,126 @@ function MainComponent() {
 
   if (userLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#357AFF] border-t-transparent"></div>
-      </div>
+      <GlassContainer className="flex items-center justify-center">
+        <ModernSpinner size="large" />
+      </GlassContainer>
     );
   }
 
   if (!user) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
-        <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-xl">
-          <h1 className="mb-4 text-2xl font-bold text-gray-800">
-            Sign In Required
-          </h1>
+      <GlassContainer className="flex flex-col items-center justify-center">
+        <GlassCard className="w-full max-w-md text-center">
+          <ModernHeading level={1}>Sign In Required</ModernHeading>
           <p className="mb-6 text-gray-600">
             Please sign in to access your mental health check-in.
           </p>
-          <a
-            href="/account/signin"
-            className="inline-block rounded-lg bg-[#357AFF] px-6 py-3 text-white hover:bg-[#2E69DE]"
+          <ModernButton
+            onClick={() => window.location.href = "/account/signin"}
           >
             Sign In
-          </a>
-        </div>
-      </div>
+          </ModernButton>
+        </GlassCard>
+      </GlassContainer>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
-      <div className="mx-auto max-w-4xl">
-        <Link href="/"
-          className="mb-4 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-gray-600 shadow-md hover:bg-gray-50"
-        >
-          <svg
-            className="h-5 w-5"
-            fill="none"
-            strokeWidth="2"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
-          </svg>
-          Go Back
-        </Link>
-        <div className="mb-8 rounded-2xl bg-white p-6 shadow-xl md:p-8">
-          <h1 className="mb-6 text-center text-3xl font-bold text-gray-800">
-            Mental Health Check-in
-          </h1>
+    <GlassContainer>
+      <BackButton />
+      <GlassCard className="mb-8 backdrop-blur-md">
+        <ModernHeading level={1} className="text-center">
+          Mental Health Check-in
+        </ModernHeading>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-4">
-              <label className="block text-lg font-medium text-gray-700">
-                How are you feeling today?
-              </label>
-              <div className="flex justify-center space-x-4">
-                {moodEmojis.map((emoji, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() => setMoodRating(index + 1)}
-                    className={`text-4xl transition-transform hover:scale-110 ${
-                      moodRating === index + 1 ? "scale-125" : ""
-                    }`}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-              {moodRating > 0 && (
-                <p className="text-center text-lg text-gray-600">
-                  {moodMessages[moodRating]}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-lg font-medium text-gray-700">
-                Additional Notes
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 p-4 focus:border-[#357AFF] focus:outline-none focus:ring-1 focus:ring-[#357AFF]"
-                placeholder="How has your day been? (optional)"
-                rows={4}
-              />
-            </div>
-
-            {error && (
-              <div className="rounded-lg bg-red-50 p-4 text-red-500">
-                {error}
-              </div>
-            )}
-
-            {success && (
-              <div className="rounded-lg bg-green-50 p-4 text-green-500">
-                Check-in submitted successfully!
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full rounded-lg bg-[#357AFF] px-6 py-3 text-white transition-colors hover:bg-[#2E69DE] disabled:opacity-50"
-            >
-              {isSubmitting ? "Submitting..." : "Submit Check-in"}
-            </button>
-          </form>
-        </div>
-
-        <div className="rounded-2xl bg-white p-6 shadow-xl md:p-8">
-          <h2 className="mb-6 text-2xl font-bold text-gray-800">
-            Recent Check-ins
-          </h2>
-          {recentCheckins.length > 0 ? (
-            <div className="space-y-4">
-              {recentCheckins.map((checkin, index) => (
-                <div
-                  key={checkin.id || index} // Use index as fallback if id is missing
-                  className="rounded-lg border border-gray-200 p-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl">
-                      {moodEmojis[(checkin.mood_rating || checkin.moodRating) - 1]}
-                    </span>
-                    <span className="text-sm text-gray-500">
-                      {new Date(checkin.created_at || checkin.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  {checkin.notes && (
-                    <p className="mt-2 text-gray-600">{checkin.notes}</p>
-                  )}
-                </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-4">
+            <label className="block text-lg font-medium text-gray-700">
+              How are you feeling today?
+            </label>
+            <div className="flex justify-center space-x-6">
+              {moodEmojis.map((emoji, index) => (
+                <ModernEmoji
+                  key={index}
+                  emoji={emoji}
+                  isSelected={moodRating === index + 1}
+                  onClick={() => setMoodRating(index + 1)}
+                />
               ))}
             </div>
-          ) : (
-            <p className="text-center text-gray-600">
-              No recent check-ins yet.
-            </p>
+            {moodRating > 0 && (
+              <p className="text-center text-lg text-gray-600 animate-fadeIn">
+                {moodMessages[moodRating]}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-lg font-medium text-gray-700">
+              Additional Notes
+            </label>
+            <ModernTextarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="How has your day been? (optional)"
+              rows={4}
+            />
+          </div>
+
+          {error && (
+            <ModernAlert type="error">
+              {error}
+            </ModernAlert>
           )}
-        </div>
-      </div>
-    </div>
+
+          {success && (
+            <ModernAlert type="success">
+              Check-in submitted successfully!
+            </ModernAlert>
+          )}
+
+          <ModernButton
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full"
+          >
+            {isSubmitting ? "Submitting..." : "Submit Check-in"}
+          </ModernButton>
+        </form>
+      </GlassCard>
+
+      <GlassCard>
+        <ModernHeading level={2}>
+          Recent Check-ins
+        </ModernHeading>
+        {recentCheckins.length > 0 ? (
+          <div className="space-y-4">
+            {recentCheckins.map((checkin, index) => (
+              <ModernCard
+                key={checkin.id || index} // Use index as fallback if id is missing
+                className="border border-gray-100 hover:border-blue-100 transition-all duration-300"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-2xl">
+                    {moodEmojis[(checkin.mood_rating || checkin.moodRating) - 1]}
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    {new Date(checkin.created_at || checkin.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                {checkin.notes && (
+                  <p className="mt-2 text-gray-600">{checkin.notes}</p>
+                )}
+              </ModernCard>
+            ))}
+          </div>
+        ) : (
+          <p className="text-center text-gray-600 py-4">
+            No recent check-ins yet.
+          </p>
+        )}
+      </GlassCard>
+    </GlassContainer>
   );
 }
 

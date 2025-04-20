@@ -6,12 +6,13 @@ export async function initForumTables() {
     console.log("Checking if discussion tables exist...");
 
     // Check if discussion_posts table exists
-    const { data: postsTableExists, error: postsTableError } = await supabase
-      .from('information_schema.tables')
-      .select('table_name')
-      .eq('table_schema', 'public')
-      .eq('table_name', 'discussion_posts')
-      .single();
+    const { data: postsTableExists, error: postsTableError } = await supabase.rpc('exec_sql', {
+      sql: `SELECT EXISTS (
+        SELECT FROM pg_tables
+        WHERE schemaname = 'public'
+        AND tablename = 'discussion_posts'
+      );`
+    });
 
     if (postsTableError && postsTableError.code !== 'PGRST116') {
       console.error("Error checking discussion_posts table:", postsTableError);
@@ -19,7 +20,7 @@ export async function initForumTables() {
     }
 
     // Create discussion_posts table if it doesn't exist
-    if (!postsTableExists) {
+    if (!postsTableExists || !postsTableExists.data || !postsTableExists.data[0] || !postsTableExists.data[0].exists) {
       console.log("Creating discussion_posts table...");
       const { error: createPostsError } = await supabase.rpc('exec_sql', {
         sql: `
@@ -44,12 +45,13 @@ export async function initForumTables() {
     }
 
     // Check if discussion_comments table exists
-    const { data: commentsTableExists, error: commentsTableError } = await supabase
-      .from('information_schema.tables')
-      .select('table_name')
-      .eq('table_schema', 'public')
-      .eq('table_name', 'discussion_comments')
-      .single();
+    const { data: commentsTableExists, error: commentsTableError } = await supabase.rpc('exec_sql', {
+      sql: `SELECT EXISTS (
+        SELECT FROM pg_tables
+        WHERE schemaname = 'public'
+        AND tablename = 'discussion_comments'
+      );`
+    });
 
     if (commentsTableError && commentsTableError.code !== 'PGRST116') {
       console.error("Error checking discussion_comments table:", commentsTableError);
@@ -57,7 +59,7 @@ export async function initForumTables() {
     }
 
     // Create discussion_comments table if it doesn't exist
-    if (!commentsTableExists) {
+    if (!commentsTableExists || !commentsTableExists.data || !commentsTableExists.data[0] || !commentsTableExists.data[0].exists) {
       console.log("Creating discussion_comments table...");
       const { error: createCommentsError } = await supabase.rpc('exec_sql', {
         sql: `

@@ -13,6 +13,7 @@ export default function CounselorSessionsPage() {
   const [availability, setAvailability] = useState([]);
   const [isEditingAvailability, setIsEditingAvailability] = useState(false);
   const [newAvailability, setNewAvailability] = useState("");
+  const [unreadMessages, setUnreadMessages] = useState({});
 
   useEffect(() => {
     if (user) {
@@ -20,6 +21,13 @@ export default function CounselorSessionsPage() {
       loadAvailability();
     }
   }, [user, statusFilter]);
+
+  // Fetch unread message counts for each session
+  useEffect(() => {
+    if (user && sessions.length > 0) {
+      fetchUnreadMessageCounts();
+    }
+  }, [user, sessions]);
 
   const loadSessions = async () => {
     try {
@@ -139,14 +147,74 @@ export default function CounselorSessionsPage() {
       }
 
       // Execute the query
-      const { data: sessionData, error: sessionsError } = await query;
+      try {
+        const { data: sessionData, error: sessionsError } = await query;
 
-      if (sessionsError) {
-        console.error('Error fetching sessions:', sessionsError);
-        throw new Error('Failed to fetch sessions');
+        if (sessionsError) {
+          // If the error is related to the relationship, try without it
+          if (sessionsError.message.includes('relationship') || sessionsError.message.includes('schema cache')) {
+            console.log('Relationship error, trying without relationship query');
+            throw new Error('Relationship error');
+          } else {
+            console.error('Error fetching sessions:', sessionsError);
+            throw new Error('Failed to fetch sessions');
+          }
+        }
+
+        setSessions(sessionData || []);
+      } catch (relationshipError) {
+        if (relationshipError.message === 'Relationship error') {
+          // If there was a relationship error, try without the relationship query
+          const { data: basicSessionData, error: basicError } = await supabase
+            .from('counseling_sessions')
+            .select('*')
+            .eq('counselor_id', user.id);
+
+          if (basicError) {
+            console.error('Error fetching sessions with basic query:', basicError);
+            throw new Error('Failed to fetch sessions');
+          }
+
+          // If we have sessions, fetch the client details separately
+          if (basicSessionData && basicSessionData.length > 0) {
+            // Get unique patient/client IDs
+            const patientIds = basicSessionData
+              .map(session => session.patient_id || session.client_id)
+              .filter(id => id); // Filter out null/undefined
+
+            // Fetch user profiles for these IDs
+            const { data: clientProfiles, error: clientError } = await supabase
+              .from('user_profiles')
+              .select('id, display_name, image_url')
+              .in('id', patientIds);
+
+            if (clientError) {
+              console.error('Error fetching client profiles:', clientError);
+            }
+
+            // Create a map of client profiles
+            const clientMap = {};
+            if (clientProfiles) {
+              clientProfiles.forEach(profile => {
+                clientMap[profile.id] = profile;
+              });
+            }
+
+            // Attach client profiles to sessions
+            const sessionsWithClients = basicSessionData.map(session => ({
+              ...session,
+              client: clientMap[session.patient_id || session.client_id] || { display_name: 'Unknown Client' }
+            }));
+
+            setSessions(sessionsWithClients);
+          } else {
+            setSessions([]);
+          }
+        } else {
+          // If it's another error, rethrow it
+          throw relationshipError;
+        }
       }
-
-      setSessions(sessionData || []);
     } catch (err) {
       console.error("Error loading sessions:", err);
       setError(err.message || "Failed to load sessions");
@@ -395,6 +463,56 @@ export default function CounselorSessionsPage() {
     }
   };
 
+  // Fetch unread message counts for all sessions
+  const fetchUnreadMessageCounts = async () => {
+    try {
+      // Create a temporary object to store counts
+      const counts = {};
+
+      // Check if the session_messages table exists
+      const { data: tableExists, error: tableCheckError } = await supabase
+        .from('information_schema.tables')
+        .select('table_name')
+        .eq('table_name', 'session_messages')
+        .eq('table_schema', 'public')
+        .single();
+
+      if (tableCheckError || !tableExists) {
+        console.log('Messages table does not exist yet');
+        return;
+      }
+
+      // For each session, get the unread message count
+      for (const session of sessions) {
+        try {
+          const response = await fetch(`/api/counseling/messages/unread-count?sessionId=${session.id}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.count > 0) {
+              counts[session.id] = data.count;
+            }
+          }
+        } catch (err) {
+          console.error(`Error fetching unread count for session ${session.id}:`, err);
+          // Continue with other sessions
+        }
+      }
+
+      // Update state with all counts at once
+      setUnreadMessages(counts);
+    } catch (err) {
+      console.error('Error fetching unread message counts:', err);
+      // Don't set error state as this is not critical
+    }
+  };
+
   if (userLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-6 flex items-center justify-center">
@@ -571,9 +689,16 @@ export default function CounselorSessionsPage() {
                     <div key={session.id} className="p-4 hover:bg-gray-50">
                       <div className="flex justify-between items-start mb-2">
                         <div>
-                          <h3 className="text-lg font-medium text-gray-900">
-                            Session with {session.client?.display_name || "Anonymous"}
-                          </h3>
+                          <div className="flex items-center">
+                            <h3 className="text-lg font-medium text-gray-900">
+                              Session with {session.client?.display_name || "Anonymous"}
+                            </h3>
+                            {unreadMessages[session.id] > 0 && (
+                              <span className="ml-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                {unreadMessages[session.id]} new
+                              </span>
+                            )}
+                          </div>
                           <p className="text-gray-600">{formatDate(session.session_date)}</p>
                         </div>
                         <div>
@@ -594,6 +719,17 @@ export default function CounselorSessionsPage() {
                         </div>
 
                         <div className="flex space-x-2">
+                          <Link
+                            href={`/counseling/session/${session.id}`}
+                            className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 flex items-center"
+                          >
+                            <span>View Details</span>
+                            {unreadMessages[session.id] > 0 && (
+                              <span className="ml-1 bg-red-500 text-white text-xs font-bold px-1.5 rounded-full">
+                                {unreadMessages[session.id]}
+                              </span>
+                            )}
+                          </Link>
                           {session.status === 'scheduled' && new Date(session.session_date) > new Date() && (
                             <>
                               <button

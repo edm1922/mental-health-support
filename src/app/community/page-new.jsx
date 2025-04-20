@@ -1,0 +1,878 @@
+"use client";
+import React, { useState, useEffect } from "react";
+import { supabase } from "@/utils/supabaseClient";
+import {
+  GlassContainer,
+  GlassCard,
+  BackButton,
+  ModernButton,
+  ModernTextarea,
+  ModernHeading,
+  ModernAlert,
+  ModernInput,
+  ModernCard,
+  ModernSpinner
+} from "@/components/ui/ModernUI";
+
+function CommunityPage() {
+  const [posts, setPosts] = useState([]);
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [newPost, setNewPost] = useState({ title: "", content: "" });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
+  const [showNewPostForm, setShowNewPostForm] = useState(false);
+  const [authStatus, setAuthStatus] = useState({ authenticated: false, checking: true });
+  const [newComment, setNewComment] = useState("");
+
+  // Check authentication status directly
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        console.log('Checking authentication status...');
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (session) {
+          console.log('User is authenticated:', session.user.id);
+          setAuthStatus({
+            authenticated: true,
+            checking: false,
+            user: session.user
+          });
+        } else {
+          console.log('No authenticated session found');
+          setAuthStatus({
+            authenticated: false,
+            checking: false,
+            user: null
+          });
+        }
+      } catch (error) {
+        console.error('Error checking auth:', error);
+        setAuthStatus({
+          authenticated: false,
+          checking: false,
+          error: error.message
+        });
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  // Fetch posts when component mounts
+  useEffect(() => {
+    // First check if we need to fix the schema
+    checkAndFixSchema().then(() => {
+      fetchPosts();
+    });
+  }, []);
+
+  const checkAndFixSchema = async () => {
+    try {
+      setSuccessMessage(null);
+      console.log('Checking if schema needs to be fixed...');
+
+      // Try to fetch posts to see if there's a schema issue
+      const { data, error } = await supabase
+        .from('discussion_posts')
+        .select('*')
+        .limit(1);
+
+      if (error) {
+        console.log('Schema issue detected:', error.message);
+        // Don't show error message to user, just fix it silently
+        setLoading(true);
+
+        // Use the simplified direct fix approach
+        console.log('Applying direct fix to forum table...');
+        const fixResponse = await fetch('/api/admin/fix-forum-table', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (fixResponse.ok) {
+          console.log('Forum table fixed, checking if that resolved the issue...');
+          // Try the query again after fixing the table
+          const { data: retryData, error: retryError } = await supabase
+            .from('discussion_posts')
+            .select('*')
+            .limit(1);
+
+          if (!retryError) {
+            console.log('Table fix resolved the issue!');
+            return true;
+          }
+          console.log('Table fix did not resolve the issue, trying direct post creation...');
+        } else {
+          console.log('Table fix failed, will try direct post creation instead');
+        }
+
+        return true; // Continue anyway, we'll use direct SQL for posting
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error checking/fixing schema:', error);
+      return false;
+    }
+  };
+
+  const fetchPosts = async () => {
+    try {
+      setLoading(true);
+      setSuccessMessage(null);
+      setError(null);
+
+      // First, automatically fix the schema if needed
+      console.log('Checking and fixing forum table if needed...');
+      await fetch('/api/admin/fix-forum-table', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // Get current user to check for their pending posts
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentUserId = session?.user?.id;
+
+      // First try with the join query
+      try {
+        // Build query to get approved posts and the user's own pending posts
+        let query = supabase
+          .from('discussion_posts')
+          .select(`
+            *,
+            user_profiles:user_id(display_name)
+          `);
+
+        // If user is logged in, show their pending posts too
+        if (currentUserId) {
+          query = query.or(`is_approved.eq.true,user_id.eq.${currentUserId}`);
+        } else {
+          query = query.eq('is_approved', true); // Only show approved posts for guests
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: false });
+
+        if (error) {
+          // If there's a relationship error, try a simpler query
+          if (error.message.includes('relationship')) {
+            throw new Error('Relationship error, trying simpler query');
+          }
+          throw error;
+        }
+
+        // Format posts with author information
+        const formattedPosts = data.map(post => ({
+          ...post,
+          author_name: post.user_profiles?.display_name || 'Unknown User'
+        }));
+
+        setPosts(formattedPosts);
+        return;
+      } catch (joinError) {
+        console.log('Join query failed, trying simple query:', joinError);
+
+        // If the join query fails, try a simple query
+        const { data, error } = await supabase
+          .from('discussion_posts')
+          .select('*')
+          .eq('is_approved', true) // Only show approved posts
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          throw error;
+        }
+
+        // Get user profiles for each post
+        const userIds = data.map(post => post.user_id).filter(Boolean);
+
+        if (userIds.length > 0) {
+          const { data: profiles, error: profilesError } = await supabase
+            .from('user_profiles')
+            .select('id, display_name')
+            .in('id', userIds);
+
+          if (!profilesError && profiles) {
+            // Create a map of user_id to display_name
+            const userMap = {};
+            profiles.forEach(profile => {
+              userMap[profile.id] = profile.display_name;
+            });
+
+            // Format posts with author information
+            const formattedPosts = data.map(post => ({
+              ...post,
+              author_name: post.user_id && userMap[post.user_id] ?
+                userMap[post.user_id] :
+                (post.user_id ? 'User ' + post.user_id.substring(0, 6) : 'Unknown User')
+            }));
+
+            setPosts(formattedPosts);
+          } else {
+            // Format posts with generic user IDs if we can't get profiles
+            const simplePosts = data.map(post => ({
+              ...post,
+              author_name: post.user_id ?
+                'User ' + post.user_id.substring(0, 6) :
+                'Unknown User'
+            }));
+
+            setPosts(simplePosts);
+          }
+        } else {
+          // Format posts without author information
+          const simplePosts = data.map(post => ({
+            ...post,
+            author_name: 'Unknown User'
+          }));
+
+          setPosts(simplePosts);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+      setError('Could not load posts. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPostDetails = async (postId) => {
+    try {
+      setLoading(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      // First, automatically fix the schema if needed
+      console.log('Checking and fixing forum table if needed...');
+      await fetch('/api/admin/fix-forum-table', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      try {
+        // Try with join query first
+        // Fetch the post
+        const { data: post, error: postError } = await supabase
+          .from('discussion_posts')
+          .select(`
+            *,
+            user_profiles:user_id(display_name)
+          `)
+          .eq('id', postId)
+          .single();
+
+        if (postError) {
+          // If there's a relationship error, try a simpler query
+          if (postError.message.includes('relationship')) {
+            throw new Error('Relationship error, trying simpler query');
+          }
+          throw postError;
+        }
+
+        // Fetch comments for the post
+        const { data: comments, error: commentsError } = await supabase
+          .from('discussion_comments')
+          .select(`
+            *,
+            user_profiles:user_id(display_name)
+          `)
+          .eq('post_id', postId)
+          .order('created_at', { ascending: true });
+
+        if (commentsError) {
+          // If there's a relationship error, try a simpler query
+          if (commentsError.message.includes('relationship')) {
+            throw new Error('Relationship error in comments, trying simpler query');
+          }
+          throw commentsError;
+        }
+
+        // Format post with author information
+        const formattedPost = {
+          ...post,
+          author_name: post.user_profiles?.display_name || 'Unknown User',
+          comments: comments.map(comment => ({
+            ...comment,
+            author_name: comment.user_profiles?.display_name || 'Unknown User'
+          }))
+        };
+
+        setSelectedPost(formattedPost);
+      } catch (joinError) {
+        console.log('Join query failed, trying simple query:', joinError);
+
+        // Try with simple queries
+        // Fetch the post
+        const { data: post, error: postError } = await supabase
+          .from('discussion_posts')
+          .select('*')
+          .eq('id', postId)
+          .single();
+
+        if (postError) {
+          throw postError;
+        }
+
+        // Fetch comments for the post
+        const { data: comments, error: commentsError } = await supabase
+          .from('discussion_comments')
+          .select('*')
+          .eq('post_id', postId)
+          .order('created_at', { ascending: true });
+
+        if (commentsError && !commentsError.message.includes('does not exist')) {
+          throw commentsError;
+        }
+
+        // Get all user IDs from post and comments
+        const userIds = [post.user_id];
+        if (comments && comments.length > 0) {
+          comments.forEach(comment => {
+            if (comment.user_id && !userIds.includes(comment.user_id)) {
+              userIds.push(comment.user_id);
+            }
+          });
+        }
+
+        // Filter out any null or undefined IDs
+        const validUserIds = userIds.filter(Boolean);
+
+        if (validUserIds.length > 0) {
+          // Get user profiles for all users
+          const { data: profiles, error: profilesError } = await supabase
+            .from('user_profiles')
+            .select('id, display_name')
+            .in('id', validUserIds);
+
+          if (!profilesError && profiles) {
+            // Create a map of user_id to display_name
+            const userMap = {};
+            profiles.forEach(profile => {
+              userMap[profile.id] = profile.display_name;
+            });
+
+            // Format post with author information
+            const formattedPost = {
+              ...post,
+              author_name: post.user_id && userMap[post.user_id] ?
+                userMap[post.user_id] :
+                (post.user_id ? 'User ' + post.user_id.substring(0, 6) : 'Unknown User'),
+              comments: (comments || []).map(comment => ({
+                ...comment,
+                author_name: comment.user_id && userMap[comment.user_id] ?
+                  userMap[comment.user_id] :
+                  (comment.user_id ? 'User ' + comment.user_id.substring(0, 6) : 'Unknown User')
+              }))
+            };
+
+            setSelectedPost(formattedPost);
+          } else {
+            // Format with generic user IDs if we can't get profiles
+            const formattedPost = {
+              ...post,
+              author_name: post.user_id ? 'User ' + post.user_id.substring(0, 6) : 'Unknown User',
+              comments: (comments || []).map(comment => ({
+                ...comment,
+                author_name: comment.user_id ? 'User ' + comment.user_id.substring(0, 6) : 'Unknown User'
+              }))
+            };
+
+            setSelectedPost(formattedPost);
+          }
+        } else {
+          // Format post without author information
+          const formattedPost = {
+            ...post,
+            author_name: 'Unknown User',
+            comments: (comments || []).map(comment => ({
+              ...comment,
+              author_name: 'Unknown User'
+            }))
+          };
+
+          setSelectedPost(formattedPost);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching post details:', error);
+      setError('Could not load post details. Please try again later.');
+      setSelectedPost(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreatePost = async (e) => {
+    e.preventDefault();
+
+    try {
+      setLoading(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      // Validate input
+      if (!newPost.title.trim() || !newPost.content.trim()) {
+        setError("Title and content are required");
+        return;
+      }
+
+      // Check authentication
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        setError("You must be signed in to create a post");
+        return;
+      }
+
+      // First, automatically fix the schema if needed
+      console.log('Checking and fixing forum table if needed...');
+      await fetch('/api/admin/fix-forum-table', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // Try to create post using the Supabase client
+      console.log('Attempting to create post with Supabase client...');
+      const { data: post, error } = await supabase
+        .from('discussion_posts')
+        .insert({
+          title: newPost.title,
+          content: newPost.content,
+          user_id: session.user.id,
+          is_approved: false // Set to false by default, requiring admin approval
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.log('Error creating post with Supabase client:', error.message);
+        console.log('Trying direct SQL method...');
+
+        // Use direct SQL method as fallback
+        const response = await fetch('/api/forum/create-post-bypass-cache', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            title: newPost.title,
+            content: newPost.content,
+            userId: session.user.id
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to create post using direct SQL method');
+        }
+
+        const result = await response.json();
+
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to create post');
+        }
+      }
+
+      // Reset form and refresh posts
+      setNewPost({ title: "", content: "" });
+      setShowNewPostForm(false);
+      await fetchPosts();
+
+      // Show success message with approval notice
+      setSuccessMessage("Your post has been submitted successfully! It's now awaiting admin approval. You can see it marked as 'Pending Approval' in the forum, but other users won't see it until it's approved.");
+      setError(null);
+
+    } catch (error) {
+      console.error('Error creating post:', error);
+      setError('Could not create post. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateComment = async (e) => {
+    e.preventDefault();
+
+    try {
+      setLoading(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      // Validate input
+      if (!newComment.trim()) {
+        setError("Comment content is required");
+        return;
+      }
+
+      // Check authentication
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        setError("You must be signed in to comment");
+        return;
+      }
+
+      // First, automatically fix the schema if needed
+      console.log('Checking and fixing forum table if needed...');
+      await fetch('/api/admin/fix-forum-table', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // Insert the comment
+      const { error } = await supabase
+        .from('discussion_comments')
+        .insert({
+          post_id: selectedPost.id,
+          content: newComment,
+          user_id: session.user.id
+        });
+
+      if (error) {
+        console.log('Error creating comment:', error.message);
+        throw error;
+      }
+
+      // Reset form and refresh post details
+      setNewComment("");
+      await fetchPostDetails(selectedPost.id);
+
+    } catch (error) {
+      console.error('Error creating comment:', error);
+      setError('Could not create comment. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignIn = () => {
+    window.location.href = `/account/signin?callbackUrl=${encodeURIComponent("/community")}`;
+  };
+
+  // Show loading state while checking authentication
+  if (authStatus.checking) {
+    return (
+      <GlassContainer className="flex items-center justify-center">
+        <ModernSpinner size="large" />
+      </GlassContainer>
+    );
+  }
+
+  return (
+    <GlassContainer>
+      <BackButton />
+
+      <div className="mb-6 flex items-center justify-between">
+        <ModernHeading level={1}>Community Forum</ModernHeading>
+        <ModernButton
+          onClick={() => authStatus.authenticated ? setShowNewPostForm(true) : handleSignIn()}
+        >
+          New Post
+        </ModernButton>
+      </div>
+
+      {!authStatus.authenticated && (
+        <ModernAlert type="info" className="mb-4">
+          <p>You're viewing the forum as a guest. <button onClick={handleSignIn} className="font-bold underline">Sign in</button> to create posts and participate in discussions.</p>
+        </ModernAlert>
+      )}
+
+      {authStatus.authenticated && (
+        <ModernAlert type="info" className="mb-4 flex items-start gap-2">
+          <span className="text-blue-500 text-lg mt-0.5">ℹ️</span>
+          <div>
+            <p>All new posts require admin approval before they appear to other users. <span className="text-blue-600">Thanks for your patience!</span></p>
+            <p className="mt-1 text-sm">Your posts will be marked with <span className="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-full font-medium">Pending Approval</span> until they're reviewed. Only you can see your pending posts.</p>
+          </div>
+        </ModernAlert>
+      )}
+
+      {error && (
+        <ModernAlert type="error" className="mb-4">
+          <p className="font-bold">Error:</p>
+          <p>{error}</p>
+        </ModernAlert>
+      )}
+
+      {successMessage && (
+        <ModernAlert type="success" className="mb-4">
+          <p className="font-bold">Success:</p>
+          <p>{successMessage}</p>
+        </ModernAlert>
+      )}
+
+      {showNewPostForm && (
+        <GlassCard className="mb-6">
+          <form onSubmit={handleCreatePost}>
+            <div className="mb-4">
+              <ModernInput
+                type="text"
+                value={newPost.title}
+                onChange={(e) =>
+                  setNewPost({ ...newPost, title: e.target.value })
+                }
+                placeholder="Post Title"
+                required
+              />
+            </div>
+            <div className="mb-4">
+              <ModernTextarea
+                value={newPost.content}
+                onChange={(e) =>
+                  setNewPost({ ...newPost, content: e.target.value })
+                }
+                placeholder="Write your post..."
+                rows={5}
+                required
+              />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <ModernButton
+                type="button"
+                onClick={() => setShowNewPostForm(false)}
+                variant="outline"
+              >
+                Cancel
+              </ModernButton>
+              <ModernButton
+                type="submit"
+              >
+                Post
+              </ModernButton>
+            </div>
+          </form>
+        </GlassCard>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <ModernSpinner size="large" />
+        </div>
+      ) : selectedPost ? (
+        <GlassCard>
+          <ModernButton
+            onClick={() => {
+              setSelectedPost(null);
+            }}
+            variant="outline"
+            className="mb-4"
+          >
+            ← Back to Posts
+          </ModernButton>
+
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <ModernHeading level={2}>
+                {selectedPost.title}
+              </ModernHeading>
+              {!selectedPost.is_approved && (
+                <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm font-medium">
+                  Pending Admin Approval
+                </span>
+              )}
+            </div>
+            {authStatus.authenticated && authStatus.user && selectedPost.user_id === authStatus.user.id && (
+              <div className="flex space-x-2">
+                <ModernButton
+                  onClick={() => {/* Handle edit */}}
+                  variant="secondary"
+                  className="text-sm px-3 py-1"
+                >
+                  Edit
+                </ModernButton>
+                <ModernButton
+                  onClick={() => {/* Handle delete */}}
+                  variant="outline"
+                  className="text-sm px-3 py-1 text-red-600 border-red-200 hover:bg-red-50"
+                >
+                  Delete
+                </ModernButton>
+              </div>
+            )}
+          </div>
+          <div className="mb-4 text-sm text-gray-600">
+            Posted by {selectedPost.author_name} on{" "}
+            {new Date(selectedPost.created_at).toLocaleDateString()}
+          </div>
+          <p className="mb-8 text-gray-700">{selectedPost.content}</p>
+
+          <div className="border-t pt-6">
+            <ModernHeading level={3} className="mb-4">Comments</ModernHeading>
+            {authStatus.authenticated ? (
+              <form onSubmit={handleCreateComment} className="mb-6">
+                <ModernTextarea
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Write a comment..."
+                  className="mb-2"
+                  rows={4}
+                  required
+                />
+                <ModernButton
+                  type="submit"
+                >
+                  Add Comment
+                </ModernButton>
+              </form>
+            ) : (
+              <ModernAlert type="info" className="mb-6">
+                <p><button onClick={handleSignIn} className="font-bold underline">Sign in</button> to add comments to this post.</p>
+              </ModernAlert>
+            )}
+
+            <div className="space-y-4">
+              {selectedPost.comments?.map((comment) => (
+                <ModernCard
+                  key={comment.id}
+                  className="bg-gray-50/80 backdrop-blur-sm hover:bg-white/80 transition-all duration-300"
+                >
+                  <div className="mb-2 text-sm text-gray-600">
+                    {comment.author_name} -{" "}
+                    {new Date(comment.created_at).toLocaleDateString()}
+                  </div>
+                  <p className="text-gray-700">{comment.content}</p>
+                </ModernCard>
+              ))}
+            </div>
+          </div>
+        </GlassCard>
+      ) : (
+        <div className="space-y-4">
+          {posts.length > 0 ? (
+            posts.map((post) => (
+              <GlassCard
+                key={post.id}
+                className={`cursor-pointer transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl ${!post.is_approved ? 'border-l-4 border-l-amber-400' : ''}`}
+                onClick={() => fetchPostDetails(post.id)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <ModernHeading level={2} className="mb-0">
+                        {post.title}
+                      </ModernHeading>
+                      {!post.is_approved && (
+                        <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full font-medium">
+                          Pending Approval
+                        </span>
+                      )}
+                    </div>
+                    <div className="mb-2 text-sm text-gray-600">
+                      Posted by {post.author_name} on{" "}
+                      {new Date(post.created_at).toLocaleDateString()}
+                    </div>
+                    <p className="text-gray-700">
+                      {post.content && post.content.length > 200
+                        ? `${post.content.substring(0, 200)}...`
+                        : post.content}
+                    </p>
+                  </div>
+                </div>
+              </GlassCard>
+            ))
+          ) : (
+            <GlassCard className="text-center p-8 relative overflow-hidden">
+              {/* Gradient background glow */}
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 opacity-70"></div>
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(147,197,253,0.15),transparent_70%)] animate-pulse-subtle"></div>
+
+              <div className="relative z-10 flex flex-col items-center">
+                {/* Character Illustration */}
+                <div className="mb-6 w-40 h-40 relative stagger-item animate-fade-in">
+                  <img
+                    src="/illustrations/conversation.svg"
+                    alt="People chatting"
+                    className="w-full h-full object-contain animate-pulse-subtle"
+                  />
+                </div>
+
+                <div className="stagger-item animate-slide-up">
+                  <h3 className="text-2xl font-semibold text-gray-800 mb-3">
+                    Looks like it's quiet here...
+                  </h3>
+
+                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                    Why not break the ice? Share a thought, question, or kind word — someone out there needs it.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-center mb-6 text-sm text-gray-500 stagger-item animate-slide-up">
+                  <div className="flex -space-x-2 mr-3">
+                    <div className="w-8 h-8 rounded-full bg-blue-400 flex items-center justify-center text-white text-xs shadow-md">
+                      😊
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-purple-400 flex items-center justify-center text-white text-xs shadow-md">
+                      🙂
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-pink-400 flex items-center justify-center text-white text-xs shadow-md">
+                      😄
+                    </div>
+                  </div>
+                  <span>People are waiting to hear from you...</span>
+                </div>
+
+                <ModernButton
+                  onClick={() => authStatus.authenticated ? setShowNewPostForm(true) : handleSignIn()}
+                  className="mb-8 relative group stagger-item animate-slide-up hover:scale-105 transition-transform duration-300"
+                >
+                  <span className="relative z-10">Create Post</span>
+                  <span className="absolute inset-0 rounded-md bg-gradient-to-r from-blue-500 to-indigo-500 opacity-0 group-hover:opacity-100 blur transition-opacity duration-300"></span>
+                </ModernButton>
+
+                {/* Thought bubble style suggestions */}
+                <div className="relative mt-4 max-w-md mx-auto stagger-item animate-slide-up">
+                  <div className="absolute -top-6 -right-2 w-6 h-6 rounded-full bg-yellow-100 border border-yellow-200"></div>
+                  <div className="absolute -top-3 right-2 w-4 h-4 rounded-full bg-yellow-100 border border-yellow-200"></div>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-5 text-sm shadow-sm">
+                    <div className="flex items-center mb-2">
+                      <span className="text-lg mr-2">✍️</span>
+                      <span className="font-medium text-yellow-800">You could start by sharing:</span>
+                    </div>
+                    <ul className="text-left space-y-2 pl-7 text-gray-700">
+                      <li className="relative">
+                        <span className="absolute -left-5">•</span>
+                        <em>How you're feeling today</em>
+                      </li>
+                      <li className="relative">
+                        <span className="absolute -left-5">•</span>
+                        <em>A challenge you're facing</em>
+                      </li>
+                      <li className="relative">
+                        <span className="absolute -left-5">•</span>
+                        <em>Something that helped you recently</em>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Sample post examples */}
+                <div className="mt-8 w-full max-w-md mx-auto opacity-60 stagger-item animate-slide-up">
+                  <p className="text-xs text-gray-500 mb-2 text-left">Sample discussions:</p>
+                  <div className="bg-white/50 backdrop-blur-sm rounded-md p-3 mb-2 text-left border border-gray-100 shadow-sm">
+                    <p className="text-gray-400 text-sm font-medium">Feeling anxious about my new job...</p>
+                  </div>
+                  <div className="bg-white/50 backdrop-blur-sm rounded-md p-3 text-left border border-gray-100 shadow-sm">
+                    <p className="text-gray-400 text-sm font-medium">What's your favorite way to relax after a stressful day?</p>
+                  </div>
+                </div>
+              </div>
+            </GlassCard>
+          )}
+        </div>
+      )}
+    </GlassContainer>
+  );
+}
+
+export default CommunityPage;

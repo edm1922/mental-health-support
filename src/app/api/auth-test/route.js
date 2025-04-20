@@ -1,12 +1,61 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import { supabase } from '@/utils/supabaseClient';
 
 export const dynamic = 'force-dynamic'; // This ensures the route is always dynamic
 
+export async function GET(request) {
+  try {
+    console.log('Auth test GET API called');
+
+    // Initialize Supabase client using cookies
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
+    // Get the current session
+    const { data, error: sessionError } = await supabase.auth.getSession();
+    const session = data?.session;
+
+    console.log('Session data:', session ? 'Session found' : 'No session');
+
+    if (sessionError) {
+      console.error('Auth error:', sessionError);
+      return NextResponse.json({
+        success: false,
+        error: 'Authentication error: ' + sessionError.message
+      }, { status: 401 });
+    }
+
+    if (!session?.user) {
+      console.error('No authenticated user found');
+      return NextResponse.json({
+        success: false,
+        error: 'No authenticated user found'
+      }, { status: 401 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Authentication successful',
+      user: {
+        id: session.user.id,
+        email: session.user.email
+      }
+    });
+  } catch (error) {
+    console.error('Exception in auth test GET API:', error);
+    return NextResponse.json({
+      success: false,
+      error: 'Exception in auth test API: ' + (error.message || 'Unknown error')
+    }, { status: 500 });
+  }
+}
+
 export async function POST(request) {
   try {
-    console.log('Auth test API called');
+    console.log('Auth test POST API called');
 
     // Get cookies from the request
     const cookieHeader = request.headers.get('cookie');
