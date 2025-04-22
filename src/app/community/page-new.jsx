@@ -26,6 +26,10 @@ function CommunityPage() {
   const [newComment, setNewComment] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [postToDelete, setPostToDelete] = useState(null);
+  const [editingPost, setEditingPost] = useState(null);
+  const [editFormData, setEditFormData] = useState({ title: "", content: "" });
+  const [editingComment, setEditingComment] = useState(null);
+  const [editCommentContent, setEditCommentContent] = useState("");
 
   // Check authentication status directly
   useEffect(() => {
@@ -60,6 +64,30 @@ function CommunityPage() {
     };
 
     checkAuth();
+
+    // Set up auth state change listener
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event, session ? 'User session exists' : 'No session');
+
+      if (session) {
+        setAuthStatus({
+          authenticated: true,
+          checking: false,
+          user: session.user
+        });
+      } else {
+        setAuthStatus({
+          authenticated: false,
+          checking: false,
+          user: null
+        });
+      }
+    });
+
+    // Clean up the listener when component unmounts
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
   }, []);
 
   // Fetch posts when component mounts
@@ -599,8 +627,172 @@ function CommunityPage() {
     }
   };
 
+  const handleEditPost = (post) => {
+    setEditingPost(post);
+    setEditFormData({
+      title: post.title,
+      content: post.content
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingPost(null);
+    setEditFormData({ title: "", content: "" });
+  };
+
+  const handleUpdatePost = async (e) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      // Validate input
+      if (!editFormData.title.trim() || !editFormData.content.trim()) {
+        setError("Title and content are required");
+        return;
+      }
+
+      // Call the API to update the post
+      const response = await fetch('/api/forum/update-post', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          postId: editingPost.id,
+          title: editFormData.title,
+          content: editFormData.content
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update post');
+      }
+
+      // Show success message
+      setSuccessMessage('Post updated successfully');
+
+      // Reset form and refresh posts
+      setEditingPost(null);
+      setEditFormData({ title: "", content: "" });
+
+      // If we were editing a selected post, refresh its details
+      if (selectedPost && selectedPost.id === editingPost.id) {
+        await fetchPostDetails(editingPost.id);
+      } else {
+        // Otherwise just refresh the posts list
+        await fetchPosts();
+      }
+    } catch (error) {
+      console.error('Error updating post:', error);
+      setError(error.message || 'Could not update post. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditComment = (comment) => {
+    setEditingComment(comment);
+    setEditCommentContent(comment.content);
+  };
+
+  const handleCancelEditComment = () => {
+    setEditingComment(null);
+    setEditCommentContent("");
+  };
+
+  const handleUpdateComment = async (e) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      // Validate input
+      if (!editCommentContent.trim()) {
+        setError("Comment content is required");
+        return;
+      }
+
+      // Call the API to update the comment
+      const response = await fetch('/api/forum/update-comment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          commentId: editingComment.id,
+          content: editCommentContent
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update comment');
+      }
+
+      // Show success message
+      setSuccessMessage('Comment updated successfully');
+
+      // Reset form
+      setEditingComment(null);
+      setEditCommentContent("");
+
+      // Refresh post details
+      await fetchPostDetails(selectedPost.id);
+    } catch (error) {
+      console.error('Error updating comment:', error);
+      setError(error.message || 'Could not update comment. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    try {
+      if (!confirm('Are you sure you want to delete this comment? This action cannot be undone.')) {
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      // Call the API to delete the comment
+      const response = await fetch('/api/forum/delete-comment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ commentId })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete comment');
+      }
+
+      // Show success message
+      setSuccessMessage('Comment deleted successfully');
+
+      // Refresh post details
+      await fetchPostDetails(selectedPost.id);
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      setError(error.message || 'Could not delete comment. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSignIn = () => {
     window.location.href = `/account/signin?callbackUrl=${encodeURIComponent("/community")}`;
+
   };
 
   // Show loading state while checking authentication
@@ -728,7 +920,7 @@ function CommunityPage() {
             {authStatus.authenticated && authStatus.user && selectedPost.user_id === authStatus.user.id && (
               <div className="flex space-x-2">
                 <ModernButton
-                  onClick={() => {/* Handle edit */}}
+                  onClick={() => handleEditPost(selectedPost)}
                   variant="secondary"
                   className="text-sm px-3 py-1"
                 >
@@ -751,7 +943,51 @@ function CommunityPage() {
             Posted by {selectedPost.author_name} on{" "}
             {new Date(selectedPost.created_at).toLocaleDateString()}
           </div>
-          <p className="mb-8 text-gray-700">{selectedPost.content}</p>
+
+          {editingPost && editingPost.id === selectedPost.id ? (
+            <GlassCard className="mb-8">
+              <form onSubmit={handleUpdatePost}>
+                <div className="mb-4">
+                  <ModernInput
+                    type="text"
+                    value={editFormData.title}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, title: e.target.value })
+                    }
+                    placeholder="Post Title"
+                    required
+                  />
+                </div>
+                <div className="mb-4">
+                  <ModernTextarea
+                    value={editFormData.content}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, content: e.target.value })
+                    }
+                    placeholder="Write your post..."
+                    rows={5}
+                    required
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <ModernButton
+                    type="button"
+                    onClick={handleCancelEdit}
+                    variant="outline"
+                  >
+                    Cancel
+                  </ModernButton>
+                  <ModernButton
+                    type="submit"
+                  >
+                    Update Post
+                  </ModernButton>
+                </div>
+              </form>
+            </GlassCard>
+          ) : (
+            <p className="mb-8 text-gray-700">{selectedPost.content}</p>
+          )}
 
           <div className="border-t pt-6">
             <ModernHeading level={3} className="mb-4">Comments</ModernHeading>
@@ -783,11 +1019,58 @@ function CommunityPage() {
                   key={comment.id}
                   className="bg-gray-50/80 backdrop-blur-sm hover:bg-white/80 transition-all duration-300"
                 >
-                  <div className="mb-2 text-sm text-gray-600">
-                    {comment.author_name} -{" "}
-                    {new Date(comment.created_at).toLocaleDateString()}
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="text-sm text-gray-600">
+                      {comment.author_name} -{" "}
+                      {new Date(comment.created_at).toLocaleDateString()}
+                    </div>
+                    {authStatus.authenticated && authStatus.user && comment.user_id === authStatus.user.id && (
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEditComment(comment)}
+                          className="text-xs text-blue-600 hover:text-blue-800"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteComment(comment.id)}
+                          className="text-xs text-red-600 hover:text-red-800"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <p className="text-gray-700">{comment.content}</p>
+
+                  {editingComment && editingComment.id === comment.id ? (
+                    <form onSubmit={handleUpdateComment} className="mt-2">
+                      <ModernTextarea
+                        value={editCommentContent}
+                        onChange={(e) => setEditCommentContent(e.target.value)}
+                        className="mb-2"
+                        rows={3}
+                        required
+                      />
+                      <div className="flex justify-end space-x-2">
+                        <ModernButton
+                          type="button"
+                          onClick={handleCancelEditComment}
+                          variant="outline"
+                          className="text-xs px-2 py-1"
+                        >
+                          Cancel
+                        </ModernButton>
+                        <ModernButton
+                          type="submit"
+                          className="text-xs px-2 py-1"
+                        >
+                          Update
+                        </ModernButton>
+                      </div>
+                    </form>
+                  ) : (
+                    <p className="text-gray-700">{comment.content}</p>
+                  )}
                 </ModernCard>
               ))}
             </div>
@@ -825,7 +1108,17 @@ function CommunityPage() {
                     </p>
                   </div>
                   {authStatus.authenticated && authStatus.user && post.user_id === authStatus.user.id && (
-                    <div className="ml-4">
+                    <div className="ml-4 flex space-x-2">
+                      <ModernButton
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditPost(post);
+                        }}
+                        variant="secondary"
+                        className="text-sm px-3 py-1"
+                      >
+                        Edit
+                      </ModernButton>
                       <ModernButton
                         onClick={(e) => {
                           e.stopPropagation();
