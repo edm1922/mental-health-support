@@ -312,199 +312,34 @@ function CommunityPage() {
       setError(null);
       setSuccessMessage(null);
 
-      // Check authentication first
-      const { data: { session } } = await supabase.auth.getSession();
-      const isAuthenticated = !!session;
-      console.log('Authentication check before fetching post:', isAuthenticated ? 'Authenticated' : 'Not authenticated');
+      console.log('Fetching post details for ID:', postId);
 
-      // First, automatically fix the schema if needed
-      console.log('Checking and fixing forum table if needed...');
-      await fetch('/api/admin/fix-forum-table', {
+      // Use the simple endpoint
+      const response = await fetch('/api/forum/simple-post-view', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ id: postId })
       });
 
-      console.log('Fetching post details for ID:', postId);
+      const data = await response.json();
 
-      // Try using the direct SQL endpoint first - this is our most reliable method
-      try {
-        console.log('Attempting to fetch post with direct SQL endpoint...');
-        const response = await fetch(`/api/forum/direct-post-view`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ id: postId })
-        });
-
-        // Even if response is not ok, try to parse the error message
-        const data = await response.json();
-
-        if (!response.ok) {
-          console.error('Direct SQL endpoint returned error:', data.error || 'Unknown error');
-          throw new Error(data.error || 'Failed to fetch post details');
-        }
-
-        console.log('Post details fetched successfully via direct SQL:',
-          data.post ? `Post ID: ${data.post.id}, Title: ${data.post.title}` : 'No post data');
-        console.log('Comments fetched:', data.comments ? data.comments.length : 0);
-
-        if (data.post) {
-          setSelectedPost({
-            ...data.post,
-            comments: data.comments || []
-          });
-          return;
-        } else {
-          throw new Error('Post data not found in response');
-        }
-      } catch (directError) {
-        console.error('Direct SQL error fetching post details:', directError);
-        console.log('Falling back to public API endpoint...');
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch post details');
       }
 
-      // Try using the public API endpoint as a fallback
-      try {
-        const response = await fetch(`/api/forum/public-post`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ id: postId })
+      console.log('Post details fetched successfully:',
+        data.post ? `Post ID: ${data.post.id}, Title: ${data.post.title}` : 'No post data');
+      console.log('Comments fetched:', data.comments ? data.comments.length : 0);
+
+      if (data.post) {
+        setSelectedPost({
+          ...data.post,
+          comments: data.comments || []
         });
-
-        // Even if response is not ok, try to parse the error message
-        const data = await response.json();
-
-        if (!response.ok) {
-          console.error('Public API endpoint returned error:', data.error || 'Unknown error');
-          throw new Error(data.error || 'Failed to fetch post details');
-        }
-
-        console.log('Post details fetched successfully via public API:',
-          data.post ? `Post ID: ${data.post.id}, Title: ${data.post.title}` : 'No post data');
-
-        if (data.post) {
-          setSelectedPost({
-            ...data.post,
-            comments: data.comments || []
-          });
-          return;
-        } else {
-          throw new Error('Post data not found in response');
-        }
-      } catch (apiError) {
-        console.error('Public API error fetching post details:', apiError);
-        console.log('Falling back to direct Supabase client...');
-      }
-
-      // Last resort: Try direct SQL query via exec_sql RPC
-      try {
-        console.log('Attempting direct SQL query via RPC...');
-
-        // Get the post with a simple SQL query
-        const { data: postResult, error: postError } = await supabase.rpc('exec_sql', {
-          sql: `SELECT * FROM public.discussion_posts WHERE id = ${postId};`
-        });
-
-        if (postError) {
-          console.error('Error with direct SQL post query:', postError);
-          throw postError;
-        }
-
-        // Handle different possible formats of the result
-        let post = null;
-        if (postResult && Array.isArray(postResult) && postResult.length > 0) {
-          post = postResult[0];
-        } else if (postResult && typeof postResult === 'object') {
-          post = postResult;
-        }
-
-        if (!post) {
-          throw new Error('Post not found');
-        }
-
-        // Get comments with a simple SQL query
-        const { data: commentsResult, error: commentsError } = await supabase.rpc('exec_sql', {
-          sql: `SELECT * FROM public.discussion_comments WHERE post_id = ${postId} ORDER BY created_at ASC;`
-        });
-
-        // Handle different possible formats of the comments result
-        let comments = [];
-        if (!commentsError) {
-          if (commentsResult && Array.isArray(commentsResult)) {
-            comments = commentsResult;
-          } else if (commentsResult && typeof commentsResult === 'object') {
-            comments = [commentsResult];
-          }
-        }
-
-        console.log('Direct SQL query successful - Post found, Comments:', comments.length);
-
-        // Format the post with minimal information
-        const formattedPost = {
-          id: post.id || 0,
-          user_id: post.user_id || 'anonymous',
-          title: post.title || 'Untitled Post',
-          content: post.content || 'No content',
-          created_at: post.created_at || new Date().toISOString(),
-          updated_at: post.updated_at || new Date().toISOString(),
-          author_name: 'Anonymous',
-          is_approved: post.is_approved !== undefined ? post.is_approved : true,
-          comments: comments.map(comment => ({
-            id: comment.id || 0,
-            post_id: comment.post_id || postId,
-            user_id: comment.user_id || 'anonymous',
-            content: comment.content || 'No comment',
-            created_at: comment.created_at || new Date().toISOString(),
-            updated_at: comment.updated_at || new Date().toISOString(),
-            author_name: 'Anonymous'
-          }))
-        };
-
-        setSelectedPost(formattedPost);
-        return;
-      } catch (directSqlError) {
-        console.error('Direct SQL RPC query failed:', directSqlError);
-        console.log('Falling back to Supabase client queries...');
-      }
-
-      // Final fallback: Try with Supabase client
-      try {
-        // Fetch the post
-        const { data: post, error: postError } = await supabase
-          .from('discussion_posts')
-          .select('*')
-          .eq('id', postId)
-          .single();
-
-        if (postError) {
-          throw postError;
-        }
-
-        // Fetch comments for the post
-        const { data: comments, error: commentsError } = await supabase
-          .from('discussion_comments')
-          .select('*')
-          .eq('post_id', postId)
-          .order('created_at', { ascending: true });
-
-        // Format post with minimal information
-        const formattedPost = {
-          ...post,
-          author_name: 'Anonymous',
-          comments: (comments || []).map(comment => ({
-            ...comment,
-            author_name: 'Anonymous'
-          }))
-        };
-
-        setSelectedPost(formattedPost);
-      } catch (finalError) {
-        console.error('All fallback methods failed:', finalError);
-        throw finalError; // Let the outer catch handle this
+      } else {
+        throw new Error('Post data not found in response');
       }
     } catch (error) {
       console.error('Error fetching post details:', error);
@@ -795,98 +630,9 @@ function CommunityPage() {
         return;
       }
 
-      // Try the direct SQL endpoint first
-      try {
-        console.log('Attempting to update post with direct SQL endpoint...');
-        const response = await fetch('/api/forum/direct-update-post-sql', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            postId: editingPost.id,
-            title: editFormData.title,
-            content: editFormData.content,
-            userId: authStatus.user?.id
-          })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to update post with direct SQL');
-        }
-
-        console.log('Post updated successfully with direct SQL endpoint');
-        // Show success message
-        setSuccessMessage('Post updated successfully');
-
-        // Reset form and refresh posts
-        setEditingPost(null);
-        setEditFormData({ title: "", content: "" });
-
-        // If we were editing a selected post, refresh its details
-        if (selectedPost && selectedPost.id === editingPost.id) {
-          await fetchPostDetails(editingPost.id);
-        } else {
-          // Otherwise just refresh the posts list
-          await fetchPosts();
-        }
-        return;
-      } catch (directError) {
-        console.error('Error with direct SQL update:', directError);
-        console.log('Falling back to authenticated endpoint...');
-      }
-
-      // If direct SQL fails, try the authenticated endpoint
-      try {
-        console.log('Attempting to update post with authenticated endpoint...');
-        const response = await fetch('/api/forum/update-post', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            postId: editingPost.id,
-            title: editFormData.title,
-            content: editFormData.content
-          })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          // If it's an authentication error, try the public endpoint
-          if (response.status === 401) {
-            console.log('Authentication error, trying public endpoint...');
-            throw new Error('Authentication required, trying public endpoint');
-          }
-          throw new Error(data.error || 'Failed to update post');
-        }
-
-        console.log('Post updated successfully with authenticated endpoint');
-        // Show success message
-        setSuccessMessage('Post updated successfully');
-
-        // Reset form and refresh posts
-        setEditingPost(null);
-        setEditFormData({ title: "", content: "" });
-
-        // If we were editing a selected post, refresh its details
-        if (selectedPost && selectedPost.id === editingPost.id) {
-          await fetchPostDetails(editingPost.id);
-        } else {
-          // Otherwise just refresh the posts list
-          await fetchPosts();
-        }
-        return;
-      } catch (authError) {
-        console.error('Error with authenticated update:', authError);
-        console.log('Falling back to public update endpoint...');
-      }
-
-      // If we get here, try the public endpoint as a last resort
-      const publicResponse = await fetch('/api/forum/public-update-post', {
+      // Use the simple endpoint
+      console.log('Updating post with simple endpoint...');
+      const response = await fetch('/api/forum/simple-update-post', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -898,13 +644,13 @@ function CommunityPage() {
         })
       });
 
-      const publicData = await publicResponse.json();
+      const data = await response.json();
 
-      if (!publicResponse.ok) {
-        throw new Error(publicData.error || 'Failed to update post with public endpoint');
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update post');
       }
 
-      console.log('Post updated successfully with public endpoint');
+      console.log('Post updated successfully');
       // Show success message
       setSuccessMessage('Post updated successfully');
 
@@ -950,86 +696,9 @@ function CommunityPage() {
         return;
       }
 
-      // Try the direct SQL endpoint first
-      try {
-        console.log('Attempting to update comment with direct SQL endpoint...');
-        const response = await fetch('/api/forum/direct-update-comment-sql', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            commentId: editingComment.id,
-            content: editCommentContent,
-            userId: authStatus.user?.id
-          })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to update comment with direct SQL');
-        }
-
-        console.log('Comment updated successfully with direct SQL endpoint');
-        // Show success message
-        setSuccessMessage('Comment updated successfully');
-
-        // Reset form
-        setEditingComment(null);
-        setEditCommentContent("");
-
-        // Refresh post details
-        await fetchPostDetails(selectedPost.id);
-        return;
-      } catch (directError) {
-        console.error('Error with direct SQL update:', directError);
-        console.log('Falling back to authenticated endpoint...');
-      }
-
-      // If direct SQL fails, try the authenticated endpoint
-      try {
-        console.log('Attempting to update comment with authenticated endpoint...');
-        const response = await fetch('/api/forum/update-comment', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            commentId: editingComment.id,
-            content: editCommentContent
-          })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          // If it's an authentication error, try the public endpoint
-          if (response.status === 401) {
-            console.log('Authentication error, trying public endpoint...');
-            throw new Error('Authentication required, trying public endpoint');
-          }
-          throw new Error(data.error || 'Failed to update comment');
-        }
-
-        console.log('Comment updated successfully with authenticated endpoint');
-        // Show success message
-        setSuccessMessage('Comment updated successfully');
-
-        // Reset form
-        setEditingComment(null);
-        setEditCommentContent("");
-
-        // Refresh post details
-        await fetchPostDetails(selectedPost.id);
-        return;
-      } catch (authError) {
-        console.error('Error with authenticated update:', authError);
-        console.log('Falling back to public update endpoint...');
-      }
-
-      // If we get here, try the public endpoint as a last resort
-      const publicResponse = await fetch('/api/forum/public-update-comment', {
+      // Use the simple endpoint
+      console.log('Updating comment with simple endpoint...');
+      const response = await fetch('/api/forum/simple-update-comment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -1040,13 +709,13 @@ function CommunityPage() {
         })
       });
 
-      const publicData = await publicResponse.json();
+      const data = await response.json();
 
-      if (!publicResponse.ok) {
-        throw new Error(publicData.error || 'Failed to update comment with public endpoint');
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update comment');
       }
 
-      console.log('Comment updated successfully with public endpoint');
+      console.log('Comment updated successfully');
       // Show success message
       setSuccessMessage('Comment updated successfully');
 
