@@ -314,8 +314,8 @@ function CommunityPage() {
 
       console.log('Fetching post details for ID:', postId);
 
-      // Use the simple endpoint
-      const response = await fetch('/api/forum/simple-post-view', {
+      // Use the basic endpoint
+      const response = await fetch('/api/forum/basic-post-view', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -630,9 +630,9 @@ function CommunityPage() {
         return;
       }
 
-      // Use the simple endpoint
-      console.log('Updating post with simple endpoint...');
-      const response = await fetch('/api/forum/simple-update-post', {
+      // Use the basic endpoint
+      console.log('Updating post with basic endpoint...');
+      const response = await fetch('/api/forum/basic-update-post', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
