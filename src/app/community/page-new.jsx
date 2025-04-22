@@ -795,8 +795,55 @@ function CommunityPage() {
         return;
       }
 
-      // Call the API to update the post
-      const response = await fetch('/api/forum/update-post', {
+      // First try the authenticated endpoint
+      try {
+        console.log('Attempting to update post with authenticated endpoint...');
+        const response = await fetch('/api/forum/update-post', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            postId: editingPost.id,
+            title: editFormData.title,
+            content: editFormData.content
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          // If it's an authentication error, try the public endpoint
+          if (response.status === 401) {
+            console.log('Authentication error, trying public endpoint...');
+            throw new Error('Authentication required, trying public endpoint');
+          }
+          throw new Error(data.error || 'Failed to update post');
+        }
+
+        console.log('Post updated successfully with authenticated endpoint');
+        // Show success message
+        setSuccessMessage('Post updated successfully');
+
+        // Reset form and refresh posts
+        setEditingPost(null);
+        setEditFormData({ title: "", content: "" });
+
+        // If we were editing a selected post, refresh its details
+        if (selectedPost && selectedPost.id === editingPost.id) {
+          await fetchPostDetails(editingPost.id);
+        } else {
+          // Otherwise just refresh the posts list
+          await fetchPosts();
+        }
+        return;
+      } catch (authError) {
+        console.error('Error with authenticated update:', authError);
+        console.log('Falling back to public update endpoint...');
+      }
+
+      // If we get here, try the public endpoint
+      const publicResponse = await fetch('/api/forum/public-update-post', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -808,12 +855,13 @@ function CommunityPage() {
         })
       });
 
-      const data = await response.json();
+      const publicData = await publicResponse.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update post');
+      if (!publicResponse.ok) {
+        throw new Error(publicData.error || 'Failed to update post with public endpoint');
       }
 
+      console.log('Post updated successfully with public endpoint');
       // Show success message
       setSuccessMessage('Post updated successfully');
 
@@ -859,8 +907,49 @@ function CommunityPage() {
         return;
       }
 
-      // Call the API to update the comment
-      const response = await fetch('/api/forum/update-comment', {
+      // First try the authenticated endpoint
+      try {
+        console.log('Attempting to update comment with authenticated endpoint...');
+        const response = await fetch('/api/forum/update-comment', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            commentId: editingComment.id,
+            content: editCommentContent
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          // If it's an authentication error, try the public endpoint
+          if (response.status === 401) {
+            console.log('Authentication error, trying public endpoint...');
+            throw new Error('Authentication required, trying public endpoint');
+          }
+          throw new Error(data.error || 'Failed to update comment');
+        }
+
+        console.log('Comment updated successfully with authenticated endpoint');
+        // Show success message
+        setSuccessMessage('Comment updated successfully');
+
+        // Reset form
+        setEditingComment(null);
+        setEditCommentContent("");
+
+        // Refresh post details
+        await fetchPostDetails(selectedPost.id);
+        return;
+      } catch (authError) {
+        console.error('Error with authenticated update:', authError);
+        console.log('Falling back to public update endpoint...');
+      }
+
+      // If we get here, try the public endpoint
+      const publicResponse = await fetch('/api/forum/public-update-comment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -871,12 +960,13 @@ function CommunityPage() {
         })
       });
 
-      const data = await response.json();
+      const publicData = await publicResponse.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update comment');
+      if (!publicResponse.ok) {
+        throw new Error(publicData.error || 'Failed to update comment with public endpoint');
       }
 
+      console.log('Comment updated successfully with public endpoint');
       // Show success message
       setSuccessMessage('Comment updated successfully');
 
