@@ -26,67 +26,91 @@ export default function SearchPage() {
   const performSearch = async (searchTerm) => {
     setLoading(true);
     try {
-      // Search in community posts
-      const { data: communityPosts, error: communityError } = await supabase
-        .from('community_posts')
-        .select('id, title, content, created_at, approved')
-        .or(`title.ilike.%${searchTerm}%, content.ilike.%${searchTerm}%`)
-        .eq('approved', true)
-        .order('created_at', { ascending: false })
-        .limit(10);
+      let formattedResults = [];
 
-      if (communityError) throw communityError;
+      try {
+        // Search in community posts
+        const { data: communityPosts, error: communityError } = await supabase
+          .from('community_posts')
+          .select('id, title, content, created_at, approved')
+          .or(`title.ilike.%${searchTerm}%, content.ilike.%${searchTerm}%`)
+          .order('created_at', { ascending: false })
+          .limit(10);
 
-      // Search in resources
-      const { data: resources, error: resourcesError } = await supabase
-        .from('resources')
-        .select('id, title, description, url, category')
-        .or(`title.ilike.%${searchTerm}%, description.ilike.%${searchTerm}%`)
-        .order('title', { ascending: true })
-        .limit(10);
+        if (!communityError && communityPosts) {
+          // Filter approved posts if the column exists
+          const filteredPosts = communityPosts.filter(post => post.approved === undefined || post.approved === true);
 
-      if (resourcesError) throw resourcesError;
+          formattedResults = [
+            ...formattedResults,
+            ...filteredPosts.map(post => ({
+              id: `community-${post.id}`,
+              title: post.title,
+              excerpt: post.content?.substring(0, 150) + '...',
+              type: 'Community Post',
+              url: `/community/post/${post.id}`,
+              date: new Date(post.created_at).toLocaleDateString()
+            }))
+          ];
+        }
+      } catch (communityError) {
+        console.error('Error searching community posts:', communityError);
+        // Continue with other searches
+      }
 
-      // Search in user profiles (display names)
-      const { data: userProfiles, error: userProfilesError } = await supabase
-        .from('user_profiles')
-        .select('id, display_name, role, bio')
-        .ilike('display_name', `%${searchTerm}%`)
-        .order('display_name', { ascending: true })
-        .limit(10);
+      try {
+        // Search in user profiles (display names)
+        const { data: userProfiles, error: userProfilesError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .ilike('display_name', `%${searchTerm}%`)
+          .order('display_name', { ascending: true })
+          .limit(10);
 
-      if (userProfilesError) throw userProfilesError;
+        if (!userProfilesError && userProfiles) {
+          console.log('Found user profiles:', userProfiles);
+          formattedResults = [
+            ...formattedResults,
+            ...userProfiles.map(profile => {
+              // Create a user-friendly excerpt from available profile data
+              let excerptParts = [];
+              if (profile.bio) excerptParts.push(profile.bio);
+              if (profile.professional_bio) excerptParts.push(profile.professional_bio);
+              if (profile.role === 'counselor' && profile.specializations?.length > 0) {
+                excerptParts.push(`Specializations: ${profile.specializations.join(', ')}`);
+              }
+              if (profile.mental_health_interests?.length > 0) {
+                excerptParts.push(`Interests: ${profile.mental_health_interests.join(', ')}`);
+              }
 
-      // Format results
-      const formattedResults = [
-        ...(communityPosts || []).map(post => ({
-          id: `community-${post.id}`,
-          title: post.title,
-          excerpt: post.content?.substring(0, 150) + '...',
-          type: 'Community Post',
-          url: `/community/post/${post.id}`,
-          date: new Date(post.created_at).toLocaleDateString()
-        })),
-        ...(resources || []).map(resource => ({
-          id: `resource-${resource.id}`,
-          title: resource.title,
-          excerpt: resource.description?.substring(0, 150) + '...',
-          type: 'Resource',
-          url: resource.url,
-          category: resource.category
-        })),
-        ...(userProfiles || []).map(profile => ({
-          id: `user-${profile.id}`,
-          title: profile.display_name,
-          excerpt: profile.bio?.substring(0, 150) || 'User profile',
-          type: profile.role === 'counselor' ? 'Counselor' : 'User',
-          url: `/profile/${profile.id}`,
-          badge: profile.role === 'counselor' ? 'Counselor' : (profile.role === 'admin' ? 'Admin' : null)
-        }))
-      ];
+              const excerpt = excerptParts.length > 0
+                ? excerptParts.join(' | ').substring(0, 150) + (excerptParts.join(' | ').length > 150 ? '...' : '')
+                : 'User profile';
 
-      setResults(formattedResults);
-      showSuccess(`Found ${formattedResults.length} results for "${searchTerm}"`);
+              return {
+                id: `user-${profile.id}`,
+                title: profile.display_name || 'User',
+                excerpt: excerpt,
+                type: profile.role === 'counselor' ? 'Counselor' : 'User',
+                url: profile.role === 'counselor' ? `/counselor/profile/${profile.id}` : `/profile`,
+                badge: profile.role === 'counselor' ? 'Counselor' : (profile.role === 'admin' ? 'Admin' : null)
+              };
+            })
+          ];
+        }
+      } catch (userProfilesError) {
+        console.error('Error searching user profiles:', userProfilesError);
+        // Continue with other searches
+      }
+
+      // Only show success message if we have results
+      if (formattedResults.length > 0) {
+        setResults(formattedResults);
+        showSuccess(`Found ${formattedResults.length} results for "${searchTerm}"`);
+      } else {
+        setResults([]);
+        // Don't show an error, just show the empty state
+      }
     } catch (error) {
       console.error('Search error:', error);
       showError('Failed to perform search. Please try again.');
