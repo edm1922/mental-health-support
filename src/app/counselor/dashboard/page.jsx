@@ -1,5 +1,6 @@
 "use client";
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { useUser } from "@/utils/useUser";
 
 function MainComponent() {
   const { data: user, loading: userLoading } = useUser();
@@ -14,12 +15,16 @@ function MainComponent() {
 
   const fetchSessions = async () => {
     try {
-      const response = await fetch("/api/counseling/sessions");
+      const response = await fetch("/api/counselor/sessions-consolidated");
       if (!response.ok) throw new Error("Failed to fetch sessions");
       const data = await response.json();
-      setSessions(data);
+      if (data.success && data.sessions) {
+        setSessions(data.sessions);
+      } else {
+        throw new Error(data.error || "Failed to fetch sessions");
+      }
     } catch (err) {
-      setError("Failed to load sessions");
+      setError("Failed to load sessions: " + err.message);
       console.error(err);
     } finally {
       setLoading(false);
@@ -35,15 +40,18 @@ function MainComponent() {
   const updateSessionStatus = async (sessionId, status) => {
     setUpdateLoading(true);
     try {
-      const response = await fetch(`/api/counseling/sessions/${sessionId}`, {
-        method: "PATCH",
+      const response = await fetch(`/api/counselor/update-session-status`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ sessionId, status }),
       });
-      if (!response.ok) throw new Error("Failed to update session");
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to update session");
+      }
       fetchSessions();
     } catch (err) {
-      setError("Failed to update session status");
+      setError("Failed to update session status: " + err.message);
       console.error(err);
     } finally {
       setUpdateLoading(false);
@@ -54,18 +62,21 @@ function MainComponent() {
     setUpdateLoading(true);
     try {
       const response = await fetch(
-        `/api/counseling/sessions/${sessionId}/notes`,
+        `/api/counselor/update-session-notes`,
         {
-          method: "PATCH",
+          method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ notes }),
+          body: JSON.stringify({ sessionId, notes }),
         }
       );
-      if (!response.ok) throw new Error("Failed to update notes");
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to update notes");
+      }
       fetchSessions();
       setSelectedSession(null);
     } catch (err) {
-      setError("Failed to update session notes");
+      setError("Failed to update session notes: " + err.message);
       console.error(err);
     } finally {
       setUpdateLoading(false);
@@ -91,7 +102,7 @@ function MainComponent() {
             This area is restricted to counselors only.
           </p>
           <a
-            href="/"
+            href="/home"
             className="inline-block rounded-lg bg-[#357AFF] px-6 py-3 text-white hover:bg-[#2E69DE]"
           >
             Return Home

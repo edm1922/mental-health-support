@@ -26,6 +26,7 @@ function MainComponent() {
   const [success, setSuccess] = useState(false);
   const [recentCheckins, setRecentCheckins] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasSubmittedToday, setHasSubmittedToday] = useState(false);
 
   const moodEmojis = ["😢", "😕", "😐", "🙂", "😊"];
   const moodMessages = {
@@ -115,6 +116,22 @@ function MainComponent() {
 
       const data = await response.json();
       setRecentCheckins(data || []);
+
+      // Check if user has already submitted a check-in today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Set to beginning of the day
+
+      const hasCheckinToday = data.some(checkin => {
+        const checkinDate = new Date(checkin.created_at);
+        checkinDate.setHours(0, 0, 0, 0); // Set to beginning of the day
+        return checkinDate.getTime() === today.getTime();
+      });
+
+      setHasSubmittedToday(hasCheckinToday);
+
+      if (hasCheckinToday) {
+        console.log('User has already submitted a check-in today');
+      }
     } catch (err) {
       console.error("Error fetching recent check-ins:", err);
       setError("Failed to load previous check-ins");
@@ -161,60 +178,78 @@ function MainComponent() {
           Mental Health Check-in
         </ModernHeading>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
-            <label className="block text-lg font-medium text-gray-700">
-              How are you feeling today?
-            </label>
-            <div className="flex justify-center space-x-6">
-              {moodEmojis.map((emoji, index) => (
-                <ModernEmoji
-                  key={index}
-                  emoji={emoji}
-                  isSelected={moodRating === index + 1}
-                  onClick={() => setMoodRating(index + 1)}
-                />
-              ))}
+        {hasSubmittedToday ? (
+          <div className="space-y-6">
+            <ModernAlert type="info" className="mb-4">
+              <div className="flex items-center">
+                <span className="text-2xl mr-3">✅</span>
+                <div>
+                  <h3 className="font-medium text-lg">You've already checked in today!</h3>
+                  <p>Thank you for sharing how you're feeling. Come back tomorrow for your next check-in.</p>
+                </div>
+              </div>
+            </ModernAlert>
+
+            <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
+              <p className="text-center text-blue-800 font-medium">Your daily check-in helps us track your mental health journey.</p>
             </div>
-            {moodRating > 0 && (
-              <p className="text-center text-lg text-gray-600 animate-fadeIn">
-                {moodMessages[moodRating]}
-              </p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-4">
+              <label className="block text-lg font-medium text-gray-700">
+                How are you feeling today?
+              </label>
+              <div className="flex justify-center space-x-6">
+                {moodEmojis.map((emoji, index) => (
+                  <ModernEmoji
+                    key={index}
+                    emoji={emoji}
+                    isSelected={moodRating === index + 1}
+                    onClick={() => setMoodRating(index + 1)}
+                  />
+                ))}
+              </div>
+              {moodRating > 0 && (
+                <p className="text-center text-lg text-gray-600 animate-fadeIn">
+                  {moodMessages[moodRating]}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-lg font-medium text-gray-700">
+                Additional Notes
+              </label>
+              <ModernTextarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="How has your day been? (optional)"
+                rows={4}
+              />
+            </div>
+
+            {error && (
+              <ModernAlert type="error">
+                {error}
+              </ModernAlert>
             )}
-          </div>
 
-          <div className="space-y-2">
-            <label className="block text-lg font-medium text-gray-700">
-              Additional Notes
-            </label>
-            <ModernTextarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="How has your day been? (optional)"
-              rows={4}
-            />
-          </div>
+            {success && (
+              <ModernAlert type="success">
+                Check-in submitted successfully!
+              </ModernAlert>
+            )}
 
-          {error && (
-            <ModernAlert type="error">
-              {error}
-            </ModernAlert>
-          )}
-
-          {success && (
-            <ModernAlert type="success">
-              Check-in submitted successfully!
-            </ModernAlert>
-          )}
-
-          <ModernButton
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full"
-          >
-            {isSubmitting ? "Submitting..." : "Submit Check-in"}
-          </ModernButton>
-        </form>
+            <ModernButton
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full"
+            >
+              {isSubmitting ? "Submitting..." : "Submit Check-in"}
+            </ModernButton>
+          </form>
+        )}
       </GlassCard>
 
       <GlassCard>

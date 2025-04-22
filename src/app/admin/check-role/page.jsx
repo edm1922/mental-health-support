@@ -18,20 +18,20 @@ export default function CheckRolePage() {
       if (user) {
         try {
           setLoading(true);
-          
+
           // Get the user's profile directly from Supabase
           const { data: profileData, error: profileError } = await supabase
             .from('user_profiles')
             .select('*')
             .eq('id', user.id)
             .single();
-            
+
           if (profileError) {
             throw new Error(`Failed to fetch profile: ${profileError.message}`);
           }
-          
+
           setProfile(profileData);
-          
+
           // Also check admin status via API
           const adminResponse = await fetch("/api/admin/check-admin-status", {
             headers: {
@@ -40,7 +40,7 @@ export default function CheckRolePage() {
           });
           const adminData = await adminResponse.json();
           setAdminCheckResult(adminData);
-          
+
         } catch (err) {
           console.error("Error loading profile:", err);
           setError(err.message);
@@ -49,44 +49,44 @@ export default function CheckRolePage() {
         }
       }
     }
-    
+
     loadProfile();
   }, [user]);
-  
+
   const makeAdmin = async () => {
     if (!user) return;
-    
+
     try {
       setUpdating(true);
       setUpdateResult(null);
-      
+
       // Update the user's role to admin directly
       const { data, error } = await supabase
         .from('user_profiles')
         .update({ role: 'admin' })
         .eq('id', user.id);
-        
+
       if (error) {
         throw new Error(`Failed to update role: ${error.message}`);
       }
-      
+
       // Refresh the profile
       const { data: updatedProfile, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', user.id)
         .single();
-        
+
       if (profileError) {
         throw new Error(`Failed to fetch updated profile: ${profileError.message}`);
       }
-      
+
       setProfile(updatedProfile);
       setUpdateResult({
         success: true,
         message: 'Your role has been updated to admin'
       });
-      
+
     } catch (err) {
       console.error("Error updating role:", err);
       setUpdateResult({
@@ -132,14 +132,14 @@ export default function CheckRolePage() {
       <div className="max-w-3xl mx-auto">
         <div className="bg-white rounded-xl shadow-xl p-8">
           <h1 className="text-2xl font-bold text-gray-800 mb-6">Admin Role Checker</h1>
-          
+
           {error && (
             <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg">
               <p className="font-medium">Error:</p>
               <p>{error}</p>
             </div>
           )}
-          
+
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-gray-700 mb-3">User Information</h2>
             <div className="bg-gray-50 p-4 rounded-lg">
@@ -147,7 +147,7 @@ export default function CheckRolePage() {
               <p><span className="font-medium">Email:</span> {user.email}</p>
             </div>
           </div>
-          
+
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-gray-700 mb-3">Profile Information</h2>
             {profile ? (
@@ -161,7 +161,7 @@ export default function CheckRolePage() {
               <p className="text-gray-500">No profile found</p>
             )}
           </div>
-          
+
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-gray-700 mb-3">Admin Check API Result</h2>
             {adminCheckResult ? (
@@ -175,7 +175,7 @@ export default function CheckRolePage() {
               <p className="text-gray-500">No admin check result</p>
             )}
           </div>
-          
+
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-gray-700 mb-3">Make Admin</h2>
             {profile?.role === 'admin' ? (
@@ -196,22 +196,22 @@ export default function CheckRolePage() {
                 </button>
               </div>
             )}
-            
+
             {updateResult && (
               <div className={`mt-4 p-4 rounded-lg ${updateResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                 <p>{updateResult.message}</p>
               </div>
             )}
           </div>
-          
+
           <div className="flex justify-between">
             <Link
-              href="/"
+              href="/home"
               className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300"
             >
               Back to Home
             </Link>
-            
+
             {profile?.role === 'admin' && (
               <Link
                 href="/admin/dashboard"

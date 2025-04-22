@@ -24,9 +24,10 @@ export const GlassContainer = ({ children, className = "" }) => {
   );
 };
 
-export const BackButton = () => {
+export const BackButton = ({ href = '/home' }) => {
   return (
-    <Link href="/"
+    <Link
+      href={href}
       className="mb-4 inline-flex items-center gap-2 rounded-lg bg-white/80 backdrop-blur-sm px-4 py-2 text-gray-600 shadow-md hover:bg-white/90 transition-all duration-200"
     >
       <svg
@@ -83,10 +84,13 @@ export const ModernInput = ({
   required = false,
   className = ""
 }) => {
+  // Ensure value is never undefined or null to prevent React controlled component warnings
+  const safeValue = value === null || value === undefined ? "" : value;
+
   return (
     <input
       type={type}
-      value={value}
+      value={safeValue}
       onChange={onChange}
       placeholder={placeholder}
       required={required}
@@ -103,9 +107,12 @@ export const ModernTextarea = ({
   required = false,
   className = ""
 }) => {
+  // Ensure value is never undefined or null to prevent React controlled component warnings
+  const safeValue = value === null || value === undefined ? "" : value;
+
   return (
     <textarea
-      value={value}
+      value={safeValue}
       onChange={onChange}
       placeholder={placeholder}
       rows={rows}
@@ -122,9 +129,12 @@ export const ModernSelect = ({
   required = false,
   className = ""
 }) => {
+  // Ensure value is never undefined or null to prevent React controlled component warnings
+  const safeValue = value === null || value === undefined ? "" : value;
+
   return (
     <select
-      value={value}
+      value={safeValue}
       onChange={onChange}
       required={required}
       className={`w-full rounded-lg border border-gray-200 p-3 focus:border-[#357AFF] focus:outline-none focus:ring-1 focus:ring-[#357AFF] transition-all duration-200 ${className}`}

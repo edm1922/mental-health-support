@@ -367,7 +367,7 @@ export default function FixDatabasePage() {
       <div className="max-w-4xl mx-auto">
         <div className="mb-6 flex items-center justify-between">
           <Link
-            href="/"
+            href="/home"
             className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-gray-600 shadow-md hover:bg-gray-50"
           >
             <svg

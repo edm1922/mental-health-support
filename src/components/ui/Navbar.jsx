@@ -70,11 +70,11 @@ export default function Navbar({ transparent = false }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Link href="/" className={`flex-shrink-0 flex items-center font-bold text-xl ${logoColor}`}>
+            <Link href="/home" className={`flex-shrink-0 flex items-center font-bold text-xl ${logoColor}`}>
               Mental Health Support
             </Link>
             <div className="hidden md:ml-8 md:flex md:space-x-6">
-              <Link href="/" className={`px-3 py-2 rounded-md text-sm font-medium ${textColor} hover:text-primary-600 transition-colors`}>
+              <Link href="/home" className={`px-3 py-2 rounded-md text-sm font-medium ${textColor} hover:text-primary-600 transition-colors`}>
                 Home
               </Link>
               <Link href="/mental-health-checkin" className={`px-3 py-2 rounded-md text-sm font-medium ${textColor} hover:text-primary-600 transition-colors`}>
@@ -86,6 +86,11 @@ export default function Navbar({ transparent = false }) {
               <Link href="/community" className={`px-3 py-2 rounded-md text-sm font-medium ${textColor} hover:text-primary-600 transition-colors`}>
                 Community
               </Link>
+              {user && (
+                <Link href="/messages" className={`px-3 py-2 rounded-md text-sm font-medium ${textColor} hover:text-primary-600 transition-colors`}>
+                  Messages
+                </Link>
+              )}
             </div>
           </div>
 
@@ -122,6 +127,12 @@ export default function Navbar({ transparent = false }) {
                   >
                     <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">
                       Your Profile
+                    </Link>
+                    <Link href="/messages" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">
+                      Messages
+                    </Link>
+                    <Link href="/counseling/sessions" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">
+                      Your Sessions
                     </Link>
 
                     {userRole === 'counselor' && (
@@ -189,7 +200,7 @@ export default function Navbar({ transparent = false }) {
       {mobileMenuOpen && (
         <div className="md:hidden bg-white shadow-lg animate-slide-in-right">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            <Link href="/" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50">
+            <Link href="/home" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50">
               Home
             </Link>
             <Link href="/mental-health-checkin" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50">
@@ -201,6 +212,12 @@ export default function Navbar({ transparent = false }) {
             <Link href="/community" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50">
               Community
             </Link>
+
+            {user && (
+              <Link href="/messages" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50">
+                Messages
+              </Link>
+            )}
 
             {userRole === 'counselor' && (
               <Link href="/counselor" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50">

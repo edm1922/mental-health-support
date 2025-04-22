@@ -100,6 +100,31 @@ export async function POST(request) {
       );
     }
 
+    // Check if the user has already submitted a check-in today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to beginning of the day
+
+    const todayISOString = today.toISOString();
+    console.log('Checking for check-ins submitted today:', todayISOString);
+
+    const { data: existingCheckins, error: checkError } = await supabase
+      .from('mental_health_checkins')
+      .select('id, created_at')
+      .eq('user_id', user.id.toString())
+      .gte('created_at', todayISOString)
+      .order('created_at', { ascending: false });
+
+    if (checkError) {
+      console.error('Error checking for existing check-ins:', checkError);
+      // Continue anyway, don't block the user from submitting
+    } else if (existingCheckins && existingCheckins.length > 0) {
+      console.log('User already submitted a check-in today:', existingCheckins);
+      return NextResponse.json(
+        { error: 'You have already submitted a check-in today. Please come back tomorrow!' },
+        { status: 400 }
+      );
+    }
+
     // Log the user ID for debugging
     const userId = user.id.toString();
     console.log('User ID for check-in:', userId, 'Type:', typeof userId);

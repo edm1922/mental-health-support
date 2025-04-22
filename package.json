@@ -1,13 +1,16 @@
 {
-  "name": "create-project",
+  "name": "mental-health-support",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:deploy": "cross-env NODE_ENV=production next build && next export -o out",
+    "build:deploy": "cross-env NODE_ENV=production next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "health-check": "node scripts/health-check.js",
+    "deploy": "vercel --prod",
+    "deploy:preview": "vercel"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.78.0",

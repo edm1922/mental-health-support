@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 
 export const config = {
-  matcher: ["/integrations/:path*", "/apply/counselor", "/admin/:path*", "/"],
+  matcher: ["/integrations/:path*", "/apply/counselor", "/admin/:path*", "/", "/profile"],
 };
 
 export async function middleware(request) {
@@ -13,7 +13,8 @@ export async function middleware(request) {
   const { data: { session } } = await supabase.auth.getSession();
 
   // Handle role-based redirection for the home page
-  if (request.nextUrl.pathname === '/') {
+  // Skip redirection if the 'stay' query parameter is present
+  if (request.nextUrl.pathname === '/' && request.nextUrl.searchParams.get('stay') !== 'true') {
     // Only redirect if the user is authenticated
     if (session) {
       try {
@@ -32,8 +33,10 @@ export async function middleware(request) {
           } else if (profile.role === 'counselor') {
             console.log('Redirecting counselor user to counselor dashboard');
             return NextResponse.redirect(new URL('/counselor/dashboard', request.url));
+          } else {
+            console.log('Redirecting regular user to home page');
+            return NextResponse.redirect(new URL('/home', request.url));
           }
-          // Regular users stay on the home page
         }
       } catch (error) {
         console.error('Error in role-based redirection:', error);
@@ -65,7 +68,6 @@ export async function middleware(request) {
   if (request.nextUrl.pathname.startsWith('/admin')) {
     try {
       // We already initialized the Supabase client and got the session above
-
       if (session) {
         // Check if the user is an admin
         const { data: profile, error } = await supabase

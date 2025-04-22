@@ -24,7 +24,7 @@ import {
 // Function to format the last active timestamp in a user-friendly way
 function formatLastActive(timestamp) {
   if (!timestamp) return 'Just now';
-  
+
   const lastActive = new Date(timestamp);
   const now = new Date();
 
@@ -64,6 +64,7 @@ export default function ModernProfilePage() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [disablingRls, setDisablingRls] = useState(false);
 
   const [formData, setFormData] = useState({
     displayName: "",
@@ -83,7 +84,7 @@ export default function ModernProfilePage() {
   const ensureProfileExists = async () => {
     try {
       setError(null);
-      
+
       // Get the current auth token
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
@@ -146,21 +147,24 @@ export default function ModernProfilePage() {
       }
 
       // Ensure array fields are properly handled
-      if (data.mental_health_interests && !Array.isArray(data.mental_health_interests)) {
-        data.mental_health_interests = [];
-      }
-      if (data.support_preferences && !Array.isArray(data.support_preferences)) {
-        data.support_preferences = [];
-      }
-      if (data.preferred_resources && !Array.isArray(data.preferred_resources)) {
-        data.preferred_resources = [];
-      }
-      if (data.triggers && !Array.isArray(data.triggers)) {
-        data.triggers = [];
-      }
-      if (data.coping_strategies && !Array.isArray(data.coping_strategies)) {
-        data.coping_strategies = [];
-      }
+      const arrayFields = [
+        'mental_health_interests',
+        'support_preferences',
+        'preferred_resources',
+        'triggers',
+        'coping_strategies',
+        'specializations'
+      ];
+
+      // Initialize all array fields to empty arrays if they're not already arrays
+      arrayFields.forEach(field => {
+        if (!data[field] || !Array.isArray(data[field])) {
+          data[field] = [];
+          console.log(`Initialized ${field} as empty array`);
+        }
+      });
+
+      console.log('Profile data after array field handling:', data);
 
       setProfile(data);
 
@@ -227,6 +231,10 @@ export default function ModernProfilePage() {
     setError(null);
     setSuccess(false);
 
+    // Show a loading state
+    setRefreshing(true);
+    console.log('Submitting profile update...');
+
     try {
       // Get the current auth token
       const { data: { session } } = await supabase.auth.getSession();
@@ -282,7 +290,7 @@ export default function ModernProfilePage() {
           setProfile(data.profile);
           setSuccess(true);
           setIsEditing(false);
-          
+
           // Force a reload of the profile data after a short delay
           setTimeout(() => {
             loadProfile();
@@ -319,17 +327,26 @@ export default function ModernProfilePage() {
       }
     } catch (err) {
       setError("Failed to update profile: " + (err.message || 'Unknown error'));
+      console.error('Profile update error:', err);
+    } finally {
+      // Always reset the loading state
+      setRefreshing(false);
     }
   };
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+    console.log(`Input change: ${name} = ${value}`);
 
     // Handle array fields separately
     if (['mentalHealthInterests', 'supportPreferences', 'preferredResources', 'triggers', 'copingStrategies', 'specializations'].includes(name)) {
+      // Ensure value is a string before splitting
+      const arrayValue = (value || '').split(',').map(item => item.trim()).filter(Boolean);
+      console.log(`Array field ${name} parsed as:`, arrayValue);
+
       setFormData((prev) => ({
         ...prev,
-        [name]: value.split(',').map(item => item.trim()).filter(Boolean)
+        [name]: arrayValue
       }));
     } else {
       setFormData((prev) => ({
@@ -368,14 +385,14 @@ export default function ModernProfilePage() {
   return (
     <GlassContainer>
       <div className="mb-6">
-        <BackButton />
+        <BackButton href="/home" />
       </div>
 
       <div className="flex items-center justify-between mb-6">
         <ModernHeading level={1}>Profile Settings</ModernHeading>
         <div className="flex space-x-3">
-          <ModernButton 
-            variant="outline" 
+          <ModernButton
+            variant="outline"
             onClick={loadProfile}
             disabled={refreshing}
           >
@@ -388,7 +405,7 @@ export default function ModernProfilePage() {
               "Refresh"
             )}
           </ModernButton>
-          <ModernButton 
+          <ModernButton
             onClick={() => setIsEditing(!isEditing)}
           >
             {isEditing ? "Cancel" : "Edit Profile"}

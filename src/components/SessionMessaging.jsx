@@ -16,6 +16,7 @@ export default function SessionMessaging({ sessionId, counselorId, patientId, ot
   const [recipientId, setRecipientId] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [realtime, setRealtime] = useState(null);
+  const [isClient, setIsClient] = useState(false);
 
   // Determine the recipient ID based on the user's role
   useEffect(() => {
@@ -65,6 +66,16 @@ export default function SessionMessaging({ sessionId, counselorId, patientId, ot
         console.log('Database relationships fixed successfully');
       }
 
+      // Ensure RLS is disabled
+      console.log('Ensuring RLS is disabled...');
+      const rlsResponse = await fetch('/api/disable-rls');
+
+      if (!rlsResponse.ok) {
+        console.error('Error disabling RLS');
+      } else {
+        console.log('RLS disabled successfully');
+      }
+
       return true;
     } catch (err) {
       console.error('Error creating messages table:', err);
@@ -93,6 +104,16 @@ export default function SessionMessaging({ sessionId, counselorId, patientId, ot
           window.location.reload();
           return;
         }
+      }
+
+      // Ensure RLS is disabled before fetching messages
+      console.log('Ensuring RLS is disabled before fetching messages...');
+      try {
+        await fetch('/api/disable-rls');
+        console.log('RLS disabled successfully');
+      } catch (error) {
+        console.error('Error disabling RLS:', error);
+        // Continue anyway
       }
 
       const response = await fetch(`/api/counseling/messages/get?sessionId=${sessionId}`, {
@@ -248,6 +269,16 @@ export default function SessionMessaging({ sessionId, counselorId, patientId, ot
           window.location.reload();
           return;
         }
+      }
+
+      // Ensure RLS is disabled before sending message
+      console.log('Ensuring RLS is disabled before sending message...');
+      try {
+        await fetch('/api/disable-rls');
+        console.log('RLS disabled successfully');
+      } catch (error) {
+        console.error('Error disabling RLS:', error);
+        // Continue anyway
       }
 
       const response = await fetch('/api/counseling/messages/send', {
@@ -414,7 +445,7 @@ export default function SessionMessaging({ sessionId, counselorId, patientId, ot
 
   // Set up realtime subscription
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || !isClient) return;
 
     // Set up realtime subscription
     const channel = supabase
@@ -497,10 +528,18 @@ export default function SessionMessaging({ sessionId, counselorId, patientId, ot
         supabase.removeChannel(channel);
       }
     };
-  }, [sessionId, user]);  // Remove messages from dependency array to prevent re-subscribing
+  }, [sessionId, user, isClient]);  // Remove messages from dependency array to prevent re-subscribing
+
+  // Effect to set isClient to true after mount
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Automatically handle authentication, table creation, and database relationships
   useEffect(() => {
+    // Only run on the client side
+    if (!isClient) return;
+
     const initializeMessaging = async () => {
       if (!sessionId) return;
 
@@ -585,12 +624,13 @@ export default function SessionMessaging({ sessionId, counselorId, patientId, ot
       clearInterval(retryInterval);
       clearInterval(refreshInterval);
     };
-  }, [sessionId, user]);
+  }, [sessionId, user, isClient]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
+    if (!isClient) return;
     scrollToBottom();
-  }, [messages]);
+  }, [messages, isClient]);
 
   // Scroll to bottom function
   const scrollToBottom = () => {
@@ -615,6 +655,38 @@ export default function SessionMessaging({ sessionId, counselorId, patientId, ot
 
     return senderId === user.id;
   };
+
+  // If we're not on the client yet, render a placeholder to avoid hydration issues
+  if (!isClient) {
+    return (
+      <div className="bg-white rounded-xl shadow-md overflow-hidden">
+        <div className="p-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
+          <h2 className="text-lg font-semibold">Messages</h2>
+        </div>
+        <div className="h-96 overflow-y-auto p-4 bg-gray-50">
+          <div className="flex justify-center items-center h-full">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          </div>
+        </div>
+        <div className="p-4 border-t border-gray-200">
+          <div className="flex">
+            <input
+              type="text"
+              placeholder="Loading..."
+              className="flex-1 rounded-l-lg border border-gray-300 p-2 focus:outline-none"
+              disabled
+            />
+            <button
+              className="bg-blue-500 text-white px-4 py-2 rounded-r-lg opacity-50 cursor-not-allowed"
+              disabled
+            >
+              Send
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden">

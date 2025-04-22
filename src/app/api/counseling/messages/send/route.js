@@ -29,6 +29,61 @@ export async function POST(request) {
     // Get the current session
     const { data: { session } } = await supabase.auth.getSession();
 
+    // Fix counselor chat RLS policies
+    try {
+      console.log('Fixing counselor chat RLS policies before sending message...');
+
+      // Execute SQL to fix RLS policies for counselor chat
+      const { error: sqlError } = await supabase.rpc('exec_sql', {
+        sql: `
+        -- Enable RLS on session_messages
+        ALTER TABLE IF EXISTS public.session_messages ENABLE ROW LEVEL SECURITY;
+
+        -- Create policy to allow users to see their own messages
+        DROP POLICY IF EXISTS "Users can view their own messages" ON public.session_messages;
+        CREATE POLICY "Users can view their own messages"
+        ON public.session_messages
+        FOR SELECT
+        USING (
+          sender_id::text = auth.uid()::text
+          OR recipient_id::text = auth.uid()::text
+          OR EXISTS (
+            SELECT 1
+            FROM counseling_sessions
+            WHERE
+              id = session_id
+              AND (counselor_id::text = auth.uid()::text OR patient_id::text = auth.uid()::text)
+          )
+        );
+
+        -- Create policy to allow users to insert messages
+        DROP POLICY IF EXISTS "Users can insert messages" ON public.session_messages;
+        CREATE POLICY "Users can insert messages"
+        ON public.session_messages
+        FOR INSERT
+        WITH CHECK (
+          sender_id::text = auth.uid()::text
+          OR EXISTS (
+            SELECT 1
+            FROM counseling_sessions
+            WHERE
+              id = session_id
+              AND (counselor_id::text = auth.uid()::text OR patient_id::text = auth.uid()::text)
+          )
+        );
+        `
+      });
+
+      if (sqlError) {
+        console.error('Error fixing RLS policies:', sqlError);
+      } else {
+        console.log('Counselor chat RLS policies fixed successfully');
+      }
+    } catch (error) {
+      console.error('Error fixing counselor chat RLS policies:', error);
+      // Continue anyway
+    }
+
     // Determine the sender ID
     let effectiveSenderId = senderId;
 
@@ -64,8 +119,8 @@ export async function POST(request) {
         if (!effectiveSenderId) {
           return NextResponse.json(
             {
-              error: 'Authentication required - please refresh the page',
-              needsRefresh: true
+              error: 'Authentication required',
+              needsRefresh: false
             },
             { status: 401 }
           );

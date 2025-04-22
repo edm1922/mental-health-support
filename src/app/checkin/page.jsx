@@ -11,6 +11,7 @@ function MainComponent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [loadingCheckins, setLoadingCheckins] = useState(true);
+  const [hasSubmittedToday, setHasSubmittedToday] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -42,6 +43,22 @@ function MainComponent() {
 
       const data = await response.json();
       setCheckins(data || []);
+
+      // Check if user has already submitted a check-in today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Set to beginning of the day
+
+      const hasCheckinToday = data.some(checkin => {
+        const checkinDate = new Date(checkin.created_at);
+        checkinDate.setHours(0, 0, 0, 0); // Set to beginning of the day
+        return checkinDate.getTime() === today.getTime();
+      });
+
+      setHasSubmittedToday(hasCheckinToday);
+
+      if (hasCheckinToday) {
+        console.log('User has already submitted a check-in today');
+      }
     } catch (error) {
       console.error("Error fetching check-ins:", error);
       setError("Failed to load previous check-ins");
@@ -127,8 +144,8 @@ function MainComponent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
       <div className="mx-auto max-w-4xl">
-        <button
-          onClick={() => window.history.back()}
+        <a
+          href="/home"
           className="mb-4 flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-gray-600 shadow-md hover:bg-gray-50"
         >
           <svg
@@ -145,66 +162,92 @@ function MainComponent() {
             />
           </svg>
           Go Back
-        </button>
+        </a>
 
         <div className="mb-8 rounded-2xl bg-white p-8 shadow-xl">
           <h1 className="mb-6 text-center text-3xl font-bold text-gray-800">
             Daily Mental Health Check-in
           </h1>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-4">
-              <label className="block text-lg font-medium text-gray-700">
-                How are you feeling today?
-              </label>
-              <div className="flex justify-between gap-4">
-                {[1, 2, 3, 4, 5].map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setMood(value)}
-                    className={`flex h-16 w-16 items-center justify-center rounded-full text-2xl transition-all ${
-                      mood === value
-                        ? "bg-[#357AFF] text-white"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    }`}
-                  >
-                    {value === 1 && "😢"}
-                    {value === 2 && "😕"}
-                    {value === 3 && "😐"}
-                    {value === 4 && "🙂"}
-                    {value === 5 && "😄"}
-                  </button>
-                ))}
+          {hasSubmittedToday ? (
+            <div className="space-y-6">
+              <div className="rounded-lg bg-blue-50 p-6 border border-blue-100">
+                <div className="flex items-center mb-4">
+                  <span className="text-2xl mr-3">✅</span>
+                  <h3 className="text-xl font-semibold text-blue-800">You've already checked in today!</h3>
+                </div>
+                <p className="text-blue-700 mb-4">
+                  Thank you for sharing how you're feeling. Your daily check-in helps us track your mental health journey.
+                </p>
+                <p className="text-blue-600">
+                  Please come back tomorrow for your next check-in.
+                </p>
+              </div>
+
+              <div className="flex justify-center">
+                <div className="inline-flex items-center text-[#357AFF] font-medium">
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span>Check back tomorrow</span>
+                </div>
               </div>
             </div>
-
-            <div className="space-y-2">
-              <label className="block text-lg font-medium text-gray-700">
-                Additional Notes
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="h-32 w-full rounded-lg border border-gray-200 p-3 focus:border-[#357AFF] focus:outline-none focus:ring-1 focus:ring-[#357AFF]"
-                placeholder="How are you feeling? What's on your mind?"
-              />
-            </div>
-
-            {error && (
-              <div className="rounded-lg bg-red-50 p-4 text-red-500">
-                {error}
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-4">
+                <label className="block text-lg font-medium text-gray-700">
+                  How are you feeling today?
+                </label>
+                <div className="flex justify-between gap-4">
+                  {[1, 2, 3, 4, 5].map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setMood(value)}
+                      className={`flex h-16 w-16 items-center justify-center rounded-full text-2xl transition-all ${
+                        mood === value
+                          ? "bg-[#357AFF] text-white"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                    >
+                      {value === 1 && "😢"}
+                      {value === 2 && "😕"}
+                      {value === 3 && "😐"}
+                      {value === 4 && "🙂"}
+                      {value === 5 && "😄"}
+                    </button>
+                  ))}
+                </div>
               </div>
-            )}
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full rounded-lg bg-[#357AFF] px-6 py-3 text-white transition-colors hover:bg-[#2E69DE] focus:outline-none focus:ring-2 focus:ring-[#357AFF] focus:ring-offset-2 disabled:opacity-50"
-            >
-              {isSubmitting ? "Submitting..." : "Submit Check-in"}
-            </button>
-          </form>
+              <div className="space-y-2">
+                <label className="block text-lg font-medium text-gray-700">
+                  Additional Notes
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="h-32 w-full rounded-lg border border-gray-200 p-3 focus:border-[#357AFF] focus:outline-none focus:ring-1 focus:ring-[#357AFF]"
+                  placeholder="How are you feeling? What's on your mind?"
+                />
+              </div>
+
+              {error && (
+                <div className="rounded-lg bg-red-50 p-4 text-red-500">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full rounded-lg bg-[#357AFF] px-6 py-3 text-white transition-colors hover:bg-[#2E69DE] focus:outline-none focus:ring-2 focus:ring-[#357AFF] focus:ring-offset-2 disabled:opacity-50"
+              >
+                {isSubmitting ? "Submitting..." : "Submit Check-in"}
+              </button>
+            </form>
+          )}
         </div>
 
         <div className="rounded-2xl bg-white p-8 shadow-xl">

@@ -24,11 +24,10 @@ export const useUser = () => {
               .eq('id', session.user.id)
               .single();
 
-            if (error && error.code === 'PGRST116') { // Not found
+            if (error && error.code === 'PGRST116') {
+              // Not found
               console.log('Creating user profile for:', session.user.id);
-              const displayName = session.user.user_metadata?.display_name ||
-                                session.user.email?.split('@')[0] ||
-                                'User';
+              const displayName = session.user.user_metadata?.display_name || session.user.email?.split('@')[0] || 'User';
 
               const { error: createError } = await supabase
                 .from('user_profiles')

@@ -303,7 +303,7 @@ function MainComponent() {
 
       setSuccess(true);
       setTimeout(() => {
-        window.location.href = "/";
+        window.location.href = "/home";
       }, 2000);
     } catch (err) {
       console.error(err);

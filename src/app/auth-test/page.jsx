@@ -8,6 +8,7 @@ export default function AuthTest() {
   const [sessionData, setSessionData] = useState(null);
   const [error, setError] = useState(null);
   const [testResult, setTestResult] = useState(null);
+  const [sessionCheckResult, setSessionCheckResult] = useState(null);
 
   useEffect(() => {
     async function checkSession() {
@@ -17,11 +18,24 @@ export default function AuthTest() {
         if (error) {
           setError(error.message);
         }
+
+        // Also check the session-check API
+        try {
+          const response = await fetch('/api/auth/session-check', {
+            method: 'GET',
+            credentials: 'include'
+          });
+
+          const result = await response.json();
+          setSessionCheckResult(result);
+        } catch (apiErr) {
+          console.error('Error calling session-check API:', apiErr);
+        }
       } catch (err) {
         setError(err.message);
       }
     }
-    
+
     checkSession();
   }, []);
 
@@ -51,13 +65,13 @@ export default function AuthTest() {
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white shadow rounded-lg overflow-hidden p-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Authentication Test</h1>
-          
+
           {error && (
             <div className="p-4 mb-4 bg-red-50 border-l-4 border-red-400">
               <p className="text-red-700">{error}</p>
             </div>
           )}
-          
+
           <div className="mb-6">
             <h2 className="text-lg font-medium text-gray-900 mb-2">User from useUser hook:</h2>
             {loading ? (
@@ -70,7 +84,7 @@ export default function AuthTest() {
               <p className="text-red-600">No user found</p>
             )}
           </div>
-          
+
           <div className="mb-6">
             <h2 className="text-lg font-medium text-gray-900 mb-2">Session from direct call:</h2>
             {sessionData ? (
@@ -81,7 +95,18 @@ export default function AuthTest() {
               <p>No session data</p>
             )}
           </div>
-          
+
+          <div className="mb-6">
+            <h2 className="text-lg font-medium text-gray-900 mb-2">Session Check API Result:</h2>
+            {sessionCheckResult ? (
+              <pre className="bg-gray-100 p-4 rounded overflow-auto max-h-40">
+                {JSON.stringify(sessionCheckResult, null, 2)}
+              </pre>
+            ) : (
+              <p>No session check result</p>
+            )}
+          </div>
+
           <div className="mb-6">
             <button
               onClick={handleTestAuth}
@@ -89,7 +114,7 @@ export default function AuthTest() {
             >
               Test Auth API
             </button>
-            
+
             {testResult && (
               <div className="mt-4">
                 <h3 className="text-md font-medium text-gray-900 mb-2">API Test Result:</h3>
@@ -99,7 +124,7 @@ export default function AuthTest() {
               </div>
             )}
           </div>
-          
+
           <div>
             <button
               onClick={handleSignOut}

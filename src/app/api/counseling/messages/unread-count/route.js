@@ -52,11 +52,43 @@ export async function GET(request) {
         .single();
 
       if (tableCheckError || !tableExists) {
-        return NextResponse.json({
-          success: true,
-          count: 0,
-          message: 'The messaging system is not set up yet.'
-        });
+        console.log('Messages table does not exist yet, trying to create it...');
+
+        // Try to create the table
+        try {
+          const createResponse = await fetch('/api/db/create-messages-table', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+
+          const createData = await createResponse.json();
+          console.log('Table creation response:', createResponse.status, createData);
+
+          if (!createResponse.ok) {
+            console.error('Failed to create messages table:', createData.error || 'Unknown error');
+            return NextResponse.json({
+              success: true,
+              count: 0,
+              message: 'The messaging system is not set up yet.'
+            });
+          }
+
+          console.log('Messages table created successfully');
+          return NextResponse.json({
+            success: true,
+            count: 0,
+            message: 'The messaging system has been set up.'
+          });
+        } catch (createError) {
+          console.error('Error creating messages table:', createError);
+          return NextResponse.json({
+            success: true,
+            count: 0,
+            message: 'The messaging system is not set up yet.'
+          });
+        }
       }
 
       return NextResponse.json(

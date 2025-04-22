@@ -55,7 +55,7 @@ export default function CounselorLayout({ children }) {
         console.log("User is not a counselor, redirecting to home");
         setError("You do not have counselor privileges. If you believe this is an error, please contact support.");
         setLoading(false);
-        router.push('/');
+        router.push('/home');
         return;
       }
 
@@ -85,7 +85,7 @@ export default function CounselorLayout({ children }) {
         <div className="bg-white rounded-xl shadow-xl p-8 max-w-md w-full">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h1>
           <p className="text-gray-600 mb-6">{error}</p>
-          <Link href="/" className="block w-full bg-green-600 text-white text-center py-2 px-4 rounded-lg hover:bg-green-700">
+          <Link href="/home" className="block w-full bg-green-600 text-white text-center py-2 px-4 rounded-lg hover:bg-green-700">
             Back to Home
           </Link>
         </div>
@@ -138,7 +138,7 @@ export default function CounselorLayout({ children }) {
               </div>
             </div>
             <div className="flex items-center">
-              <Link href="/" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-green-700">
+              <Link href="/home" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-green-700">
                 Back to Site
               </Link>
               <button

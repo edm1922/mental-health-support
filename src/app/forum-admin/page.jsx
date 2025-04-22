@@ -65,8 +65,8 @@ export default function ForumAdminPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
       <div className="mx-auto max-w-4xl">
-        <button
-          onClick={() => window.history.back()}
+        <a
+          href="/"
           className="mb-4 flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-gray-600 shadow-md hover:bg-gray-50"
         >
           <svg
@@ -83,7 +83,7 @@ export default function ForumAdminPage() {
             />
           </svg>
           Go Back
-        </button>
+        </a>
 
         <div className="mb-6 rounded-2xl bg-white p-6 shadow-xl">
           <h1 className="mb-6 text-3xl font-bold text-gray-800">Forum Admin</h1>

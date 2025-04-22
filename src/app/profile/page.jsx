@@ -1,6 +1,6 @@
 "use client";
-import ModernProfilePage from "./ModernProfilePage";
+import SimpleProfilePage from "./SimpleProfilePage";
 
 export default function Page() {
-  return <ModernProfilePage />;
+  return <SimpleProfilePage />;
 }

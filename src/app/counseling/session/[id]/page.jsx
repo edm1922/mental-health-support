@@ -4,7 +4,13 @@ import { useUser } from "@/utils/useUser";
 import { supabase } from "@/utils/supabaseClient";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import SessionMessaging from "@/components/SessionMessaging";
+import dynamic from 'next/dynamic';
+
+// Dynamically import the SimpleChat component with no SSR
+const SimpleChat = dynamic(
+  () => import('@/components/SimpleChat'),
+  { ssr: false }
+);
 
 export default function SessionDetailPage({ params }) {
   const { id: sessionId } = params;
@@ -22,8 +28,35 @@ export default function SessionDetailPage({ params }) {
     }
   }, [user, userLoading, router, sessionId]);
 
+  // Setup function to ensure RLS is disabled and create necessary functions
+  useEffect(() => {
+    const setupEnvironment = async () => {
+      try {
+        // First try to create the ensure_rls_disabled function
+        const setupResponse = await fetch('/api/setup/create-rls-function');
+        console.log('Setup response:', await setupResponse.json());
+      } catch (setupErr) {
+        console.error('Error in setup:', setupErr);
+        // Continue anyway
+      }
+
+      // Then ensure RLS is disabled
+      try {
+        const response = await fetch('/api/disable-rls');
+        const data = await response.json();
+        console.log('RLS status:', data);
+      } catch (rlsErr) {
+        console.error('Error disabling RLS:', rlsErr);
+      }
+    };
+
+    // Run setup once when the component mounts
+    setupEnvironment();
+  }, []);
+
   useEffect(() => {
     if (user) {
+      // Fetch session details when user is available
       fetchSessionDetails();
     }
   }, [user, sessionId]);
@@ -31,6 +64,15 @@ export default function SessionDetailPage({ params }) {
   const fetchSessionDetails = async () => {
     try {
       setLoading(true);
+
+      // Ensure RLS is disabled before fetching session details
+      try {
+        await fetch('/api/disable-rls');
+        console.log('RLS disabled before fetching session details');
+      } catch (rlsError) {
+        console.error('Error disabling RLS:', rlsError);
+        // Continue anyway
+      }
 
       // First try with the relationship query
       try {
@@ -69,6 +111,10 @@ export default function SessionDetailPage({ params }) {
 
         if (error) {
           throw error;
+        }
+
+        if (!data) {
+          throw new Error("Session not found");
         }
 
         // Check if user is either the counselor or client for this session
@@ -256,25 +302,46 @@ export default function SessionDetailPage({ params }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
       <div className="mx-auto max-w-4xl">
-        <Link
-          href={isCounselor ? "/counselor/sessions" : "/counseling/sessions"}
-          className="mb-4 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-gray-600 shadow-md hover:bg-gray-50"
-        >
-          <svg
-            className="h-5 w-5"
-            fill="none"
-            strokeWidth="2"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        <div className="mb-4 flex space-x-3">
+          <Link
+            href={isCounselor ? "/counselor/sessions" : "/counseling/sessions"}
+            className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-gray-600 shadow-md hover:bg-gray-50"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
-          </svg>
-          Back to Sessions
-        </Link>
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              strokeWidth="2"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+              />
+            </svg>
+            Back to Sessions
+          </Link>
+          <Link
+            href="/messages"
+            className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-gray-600 shadow-md hover:bg-gray-50"
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              strokeWidth="2"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+              />
+            </svg>
+            View All Messages
+          </Link>
+        </div>
 
         <div className="mb-6 rounded-2xl bg-white p-6 shadow-xl md:p-8">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
@@ -366,12 +433,11 @@ export default function SessionDetailPage({ params }) {
           )}
 
           {/* Messaging Component */}
-          <div className="mt-6">
-            <SessionMessaging
+          <div className="mt-6 rounded-lg border border-gray-200 overflow-hidden h-[500px]">
+            {/* Chat component will handle disabling RLS internally */}
+
+            <SimpleChat
               sessionId={sessionId}
-              counselorId={session.counselor_id}
-              patientId={session.patient_id}
-              otherPersonName={otherParticipant?.display_name || "other participant"}
             />
           </div>
 

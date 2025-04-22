@@ -320,7 +320,7 @@ export default function AdminLayout({ children }) {
               </Link>
 
               <Link
-                href="/"
+                href="/home"
                 className="block px-3 py-2 rounded-md text-base font-medium hover:bg-white/10"
               >
                 Back to Site

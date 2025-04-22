@@ -5,6 +5,7 @@ import { useAuth } from '../utils/useAuth';
 import { supabase } from '../utils/supabaseClient';
 import CounselorSection, { CounselorApplicationSection } from '../components/CounselorSection';
 import RoleBasedActionCards from '../components/RoleBasedActionCards';
+import RoleBasedRedirect from '../components/RoleBasedRedirect';
 import DatabaseSchemaCheck from '../components/DatabaseSchemaCheck';
 import QuotePopupProvider from '../components/QuotePopupProvider';
 import { useRouter } from 'next/navigation';
@@ -35,6 +36,8 @@ function MainComponent() {
     async function loadProfile() {
       if (user) {
         try {
+          console.log('Home page: User is authenticated, ID:', user.id);
+
           // Get the current auth token
           const { data: { session } } = await supabase.auth.getSession();
           const token = session?.access_token;
@@ -44,9 +47,21 @@ function MainComponent() {
             return;
           }
 
-          // Update last_active timestamp
-          try {
-            const lastActiveResponse = await fetch("/api/update-last-active", {
+          console.log('Home page: Session token available');
+
+          // Get user profile directly from Supabase
+          const { data: profileData, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+          if (profileError) {
+            console.error('Error fetching profile from Supabase:', profileError);
+
+            // Fallback to API endpoint
+            console.log('Home page: Falling back to API endpoint');
+            const response = await fetch("/api/get-basic-profile", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
@@ -54,63 +69,37 @@ function MainComponent() {
               },
             });
 
-            if (!lastActiveResponse.ok) {
-              console.warn('Failed to update last active timestamp');
+            if (response.ok) {
+              const data = await response.json();
+              console.log('Profile data loaded from API:', data);
+              setProfileData(data);
+            } else {
+              const errorData = await response.json();
+              throw new Error(errorData.error || "Failed to load profile");
             }
-          } catch (lastActiveError) {
-            console.warn('Error updating last active timestamp:', lastActiveError);
+          } else {
+            console.log('Profile data loaded from Supabase:', profileData);
+            setProfileData(profileData);
           }
 
-          // Use the get-basic-profile endpoint that we know works
-          const response = await fetch("/api/get-basic-profile", {
+          // Update last_active timestamp (non-blocking)
+          fetch("/api/update-last-active", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               "Authorization": `Bearer ${token}`
             },
+          }).catch(err => {
+            console.warn('Error updating last active timestamp:', err);
           });
 
-          if (response.ok) {
-            const data = await response.json();
-            console.log('Profile data loaded:', data);
-            setProfileData(data);
-
-            // Redirect based on user role
-            if (data.role === "admin") {
-              router.push('/admin');
-              return;
-            } else if (data.role === "counselor") {
-              router.push('/counselor');
-              return;
-            }
-
-            // If user is admin, fetch applications with correct endpoint
-            if (data.role === "admin") {
-              const applicationsResponse = await fetch(
-                "/api/admin/list-applications",
-                {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                  },
-                }
-              );
-              if (!applicationsResponse.ok) {
-                throw new Error("Failed to fetch applications");
-              }
-              const applicationsData = await applicationsResponse.json();
-              if (applicationsData.error) {
-                throw new Error(applicationsData.error);
-              }
-            }
-          } else {
-            const errorData = await response.json();
-            throw new Error(errorData.error || "Failed to load profile");
-          }
+          // Authentication successful, user will be redirected based on role
+          console.log('Home page: Authentication successful, user will be redirected based on role');
         } catch (error) {
           console.error("Error loading profile:", error);
         }
+      } else {
+        console.log('Home page: No authenticated user');
       }
     }
     loadProfile();
@@ -150,6 +139,9 @@ function MainComponent() {
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Role-based redirect component - redirects authenticated users to their dashboard */}
+      <RoleBasedRedirect />
+
       {/* Database schema check component - runs on page load */}
       <DatabaseSchemaCheck />
 
@@ -173,6 +165,8 @@ function MainComponent() {
 
         {/* Role-based action cards */}
         <RoleBasedActionCards userRole={profileData?.role || 'user'} />
+
+        {/* Role-based action cards will handle navigation */}
 
         {/* Mental Health Resources Section */}
         <div id="resources" className="py-16 reveal">

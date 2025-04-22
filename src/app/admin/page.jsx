@@ -325,7 +325,7 @@ export default function AdminDashboard() {
               <span className="text-indigo-500 mr-2">⚡</span>
               Quick Actions
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <Link
                 href="/admin/counselor-applications"
                 className="flex items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 hover:scale-[1.02] transition-all duration-300 shadow-sm"
@@ -360,30 +360,6 @@ export default function AdminDashboard() {
                   </svg>
                 </div>
                 <span className="text-sm font-medium text-gray-800">Database Management</span>
-              </Link>
-
-              <Link
-                href="/admin/fix-db-schema"
-                className="flex items-center p-4 bg-red-50 rounded-lg hover:bg-red-100 hover:scale-[1.02] transition-all duration-300 shadow-sm"
-              >
-                <div className="p-2 bg-red-100 rounded-full mr-3">
-                  <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                  </svg>
-                </div>
-                <span className="text-sm font-medium text-gray-800">Fix DB Schema</span>
-              </Link>
-
-              <Link
-                href="/admin/fix-counseling-sessions"
-                className="flex items-center p-4 bg-orange-50 rounded-lg hover:bg-orange-100 hover:scale-[1.02] transition-all duration-300 shadow-sm"
-              >
-                <div className="p-2 bg-orange-100 rounded-full mr-3">
-                  <svg className="h-6 w-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                  </svg>
-                </div>
-                <span className="text-sm font-medium text-gray-800">Fix Counseling Sessions</span>
               </Link>
 
               <Link

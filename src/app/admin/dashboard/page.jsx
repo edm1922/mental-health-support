@@ -222,7 +222,7 @@ function MainComponent() {
               Database Management
             </Link>
             <Link
-              href="/"
+              href="/home"
               className="bg-white text-gray-600 px-4 py-2 rounded-lg shadow-md hover:bg-gray-50 flex items-center gap-2"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
