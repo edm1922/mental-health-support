@@ -328,7 +328,38 @@ function CommunityPage() {
 
       console.log('Fetching post details for ID:', postId);
 
-      // Try using the public API endpoint first for better error handling
+      // Try using the direct SQL endpoint first
+      try {
+        console.log('Attempting to fetch post with direct SQL endpoint...');
+        const response = await fetch(`/api/forum/direct-post-view`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ id: postId })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to fetch post details');
+        }
+
+        const data = await response.json();
+        console.log('Post details fetched successfully via direct SQL:', data);
+
+        if (data.post) {
+          setSelectedPost({
+            ...data.post,
+            comments: data.comments || []
+          });
+          return;
+        }
+      } catch (directError) {
+        console.error('Direct SQL error fetching post details:', directError);
+        console.log('Falling back to public API endpoint...');
+      }
+
+      // Try using the public API endpoint as a fallback
       try {
         const response = await fetch(`/api/forum/public-post`, {
           method: 'POST',
