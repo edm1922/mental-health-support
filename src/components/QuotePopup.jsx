@@ -16,8 +16,23 @@ export default function QuotePopup({
 
   // Check if we should show quotes based on user preference
   useEffect(() => {
+    // Check if quotes were disabled more than 24 hours ago
+    const quotesDisabledTime = localStorage.getItem("disableQuotePopupsTime");
     const quotesDisabled = localStorage.getItem("disableQuotePopups") === "true";
-    if (quotesDisabled) {
+
+    if (quotesDisabled && quotesDisabledTime) {
+      const disabledTime = parseInt(quotesDisabledTime, 10);
+      const currentTime = new Date().getTime();
+      const hoursSinceDisabled = (currentTime - disabledTime) / (1000 * 60 * 60);
+
+      // If it's been more than 24 hours, re-enable quotes
+      if (hoursSinceDisabled > 24) {
+        localStorage.removeItem("disableQuotePopups");
+        localStorage.removeItem("disableQuotePopupsTime");
+      } else {
+        enabled = false;
+      }
+    } else if (quotesDisabled) {
       enabled = false;
     }
   }, []);
@@ -46,8 +61,34 @@ export default function QuotePopup({
       }
     }, showInterval);
 
-    return () => clearInterval(intervalTimer);
-  }, [showInterval, hasShown, enabled, userDismissed]);
+    // Add event listener for user activity to occasionally show quotes
+    const handleUserActivity = () => {
+      // Only show if not already showing and not dismissed
+      if (!showQuote && !userDismissed && enabled) {
+        // 5% chance to show a quote on user activity
+        if (Math.random() < 0.05) {
+          // Don't show too frequently - check last shown time
+          const lastShown = localStorage.getItem("lastQuoteShownTime");
+          const currentTime = new Date().getTime();
+
+          if (!lastShown || (currentTime - parseInt(lastShown, 10)) > 60000) { // At least 1 minute since last shown
+            setShowQuote(true);
+            localStorage.setItem("lastQuoteShownTime", currentTime.toString());
+          }
+        }
+      }
+    };
+
+    // Add event listeners for various user activities
+    window.addEventListener('click', handleUserActivity);
+    window.addEventListener('scroll', handleUserActivity);
+
+    return () => {
+      clearInterval(intervalTimer);
+      window.removeEventListener('click', handleUserActivity);
+      window.removeEventListener('scroll', handleUserActivity);
+    };
+  }, [showInterval, hasShown, enabled, userDismissed, showQuote]);
 
   // Auto-hide the quote after showDuration
   useEffect(() => {
@@ -68,6 +109,7 @@ export default function QuotePopup({
     setShowQuote(false);
     setUserDismissed(true);
     localStorage.setItem("disableQuotePopups", "true");
+    localStorage.setItem("disableQuotePopupsTime", new Date().getTime().toString());
   };
 
   const handleNewQuote = () => {
@@ -95,12 +137,18 @@ export default function QuotePopup({
               onNewQuote={handleNewQuote}
             />
 
-            <div className="mt-2 flex justify-end">
+            <div className="mt-2 flex justify-between">
+              <button
+                onClick={handleNewQuote}
+                className="text-xs bg-blue-500 px-3 py-1.5 rounded-md shadow-sm text-white hover:bg-blue-600 transition-colors"
+              >
+                Show me more quotes
+              </button>
               <button
                 onClick={handleDisable}
-                className="text-xs bg-white px-2 py-1 rounded-md shadow-sm border border-gray-200 text-gray-600 hover:text-gray-800 hover:bg-gray-50 transition-colors"
+                className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
               >
-                Don't show again
+                Don't show for 24 hours
               </button>
             </div>
           </div>
