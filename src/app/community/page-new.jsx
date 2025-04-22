@@ -36,6 +36,26 @@ function CommunityPage() {
     const checkAuth = async () => {
       try {
         console.log('Checking authentication status...');
+
+        // Try to refresh the session first
+        try {
+          const refreshResponse = await fetch('/api/auth/refresh-session', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (refreshResponse.ok) {
+            console.log('Session refreshed successfully');
+          } else {
+            console.log('Session refresh not needed or failed');
+          }
+        } catch (refreshError) {
+          console.error('Error refreshing session:', refreshError);
+        }
+
+        // Now get the session
         const { data: { session } } = await supabase.auth.getSession();
 
         if (session) {
@@ -287,6 +307,38 @@ function CommunityPage() {
         }
       });
 
+      console.log('Fetching post details for ID:', postId);
+
+      // Try using the API endpoint first for better error handling
+      try {
+        const response = await fetch(`/api/forum/post`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ id: postId })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to fetch post details');
+        }
+
+        const data = await response.json();
+        console.log('Post details fetched successfully via API:', data);
+
+        if (data.post) {
+          setSelectedPost({
+            ...data.post,
+            comments: data.comments || []
+          });
+          return;
+        }
+      } catch (apiError) {
+        console.error('API error fetching post details:', apiError);
+        console.log('Falling back to direct Supabase client...');
+      }
+
       try {
         // Try with join query first
         // Fetch the post
@@ -325,6 +377,8 @@ function CommunityPage() {
           throw commentsError;
         }
 
+        console.log('Comments fetched:', comments ? comments.length : 0);
+
         // Format post with author information
         const formattedPost = {
           ...post,
@@ -361,6 +415,8 @@ function CommunityPage() {
         if (commentsError && !commentsError.message.includes('does not exist')) {
           throw commentsError;
         }
+
+        console.log('Comments fetched (simple query):', comments ? comments.length : 0);
 
         // Get all user IDs from post and comments
         const userIds = [post.user_id];
@@ -560,27 +616,56 @@ function CommunityPage() {
         }
       });
 
-      // Insert the comment
-      const { error } = await supabase
-        .from('discussion_comments')
-        .insert({
-          post_id: selectedPost.id,
-          content: newComment,
-          user_id: session.user.id
+      console.log('Creating comment for post:', selectedPost.id);
+      console.log('Comment content:', newComment);
+      console.log('User ID:', session.user.id);
+
+      // Try using the API endpoint first
+      try {
+        const response = await fetch('/api/forum/create-comment', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            post_id: selectedPost.id,
+            content: newComment
+          })
         });
 
-      if (error) {
-        console.log('Error creating comment:', error.message);
-        throw error;
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to create comment');
+        }
+
+        console.log('Comment created successfully via API');
+      } catch (apiError) {
+        console.error('API error creating comment:', apiError);
+        console.log('Falling back to direct Supabase client...');
+
+        // Insert the comment using Supabase client as fallback
+        const { error } = await supabase
+          .from('discussion_comments')
+          .insert({
+            post_id: selectedPost.id,
+            content: newComment,
+            user_id: session.user.id
+          });
+
+        if (error) {
+          console.error('Error creating comment with Supabase client:', error);
+          throw error;
+        }
       }
 
       // Reset form and refresh post details
       setNewComment("");
+      setSuccessMessage("Comment added successfully");
       await fetchPostDetails(selectedPost.id);
 
     } catch (error) {
       console.error('Error creating comment:', error);
-      setError('Could not create comment. Please try again later.');
+      setError('Could not create comment. Please try again later: ' + error.message);
     } finally {
       setLoading(false);
     }

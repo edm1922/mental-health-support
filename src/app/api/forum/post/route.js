@@ -60,7 +60,7 @@ export async function POST(request) {
     // Fetch the post using direct SQL
     try {
       const { data: postResult, error: postError } = await supabase.rpc('exec_sql', {
-        sql: `SELECT id, user_id, title, content, created_at, updated_at
+        sql: `SELECT id, user_id, title, content, created_at, updated_at, is_approved
               FROM public.discussion_posts
               WHERE id = ${id};`
       });
@@ -94,7 +94,7 @@ export async function POST(request) {
 
       // Fetch comments for the post using direct SQL
       const { data: commentsResult, error: commentsError } = await supabase.rpc('exec_sql', {
-        sql: `SELECT id, post_id, user_id, content, created_at
+        sql: `SELECT id, post_id, user_id, content, created_at, updated_at
               FROM public.discussion_comments
               WHERE post_id = ${id}
               ORDER BY created_at ASC;`
@@ -121,6 +121,29 @@ export async function POST(request) {
         comments = [commentsResult];
       }
 
+    // Try to get user profiles for the post author and comment authors
+    const userIds = [post.user_id, ...comments.map(comment => comment.user_id)].filter(Boolean);
+    let userProfiles = {};
+
+    if (userIds.length > 0) {
+      try {
+        const { data: profiles, error: profilesError } = await supabase
+          .from('user_profiles')
+          .select('id, display_name')
+          .in('id', userIds);
+
+        if (!profilesError && profiles) {
+          // Create a map of user_id to display_name
+          profiles.forEach(profile => {
+            userProfiles[profile.id] = profile.display_name;
+          });
+        }
+      } catch (profileError) {
+        console.error('Error fetching user profiles:', profileError);
+        // Continue without profiles
+      }
+    }
+
     // Format the post with safe access to properties
     const formattedPost = {
       id: post.id || 0,
@@ -129,8 +152,10 @@ export async function POST(request) {
       content: post.content || 'No content',
       created_at: post.created_at || new Date().toISOString(),
       updated_at: post.updated_at || new Date().toISOString(),
-      author_name: 'Anonymous',
-      author_role: 'user'
+      author_name: post.user_id && userProfiles[post.user_id] ?
+        userProfiles[post.user_id] :
+        (post.user_id ? `User ${post.user_id.substring(0, 6)}` : 'Anonymous'),
+      is_approved: post.is_approved !== undefined ? post.is_approved : true
     };
 
     // Format the comments with safe access to properties
@@ -140,8 +165,10 @@ export async function POST(request) {
       user_id: comment.user_id || 'anonymous',
       content: comment.content || 'No comment',
       created_at: comment.created_at || new Date().toISOString(),
-      author_name: 'Anonymous',
-      author_role: 'user'
+      updated_at: comment.updated_at || new Date().toISOString(),
+      author_name: comment.user_id && userProfiles[comment.user_id] ?
+        userProfiles[comment.user_id] :
+        (comment.user_id ? `User ${comment.user_id.substring(0, 6)}` : 'Anonymous')
     }));
 
     console.log('Returning formatted post:', formattedPost);
