@@ -7,8 +7,8 @@ const nextConfig = {
     config.externals = [...config.externals, { canvas: "canvas" }]; // required to make pdfjs work
     return config;
   },
-  // Enable server-side rendering for API routes
-  // output: 'export', // Commented out to enable API routes
+  // Configure output for deployment
+  output: 'standalone',
   // Skip type checking during build
   typescript: {
     ignoreBuildErrors: true,
@@ -20,6 +20,20 @@ const nextConfig = {
   // Disable image optimization
   images: {
     unoptimized: true,
+  },
+  // Configure routes that should not be statically generated
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, max-age=0',
+          },
+        ],
+      },
+    ];
   },
 };
 
