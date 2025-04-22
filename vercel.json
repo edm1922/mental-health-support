@@ -10,8 +10,8 @@
     "NEXT_PUBLIC_SUPABASE_URL": "https://euebogudyyeodzkvhyef.supabase.co",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1ZWJvZ3VkeXllb2R6a3ZoeWVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ4NjM5NDgsImV4cCI6MjA2MDQzOTk0OH0.b68JOxrpuFwWb2K3DraYvv32uqomvK0r1imbOCG0HKc"
   },
-  "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1", "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"] }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" }
   ],
   "headers": [
     {
