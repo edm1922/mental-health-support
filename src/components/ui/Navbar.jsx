@@ -104,9 +104,8 @@ export default function Navbar({ transparent = false }) {
               className="block"
               placeholder="Search the site..."
               onSearch={(term) => {
-                // Use showSuccess instead of showInfo
-                showSuccess(`Searching for: ${term}`);
-                // Implement actual search functionality here
+                // Navigate to search page with the search term
+                window.location.href = `/search?q=${encodeURIComponent(term)}`;
               }}
             />
             {user ? (
@@ -219,10 +218,9 @@ export default function Navbar({ transparent = false }) {
                 className="block sm:hidden w-full"
                 placeholder="Search the site..."
                 onSearch={(term) => {
-                  // Use showSuccess instead of showInfo
-                  showSuccess(`Searching for: ${term}`);
                   setMobileMenuOpen(false);
-                  // Implement actual search functionality here
+                  // Navigate to search page with the search term
+                  window.location.href = `/search?q=${encodeURIComponent(term)}`;
                 }}
               />
             </div>

@@ -47,6 +47,16 @@ export default function SearchPage() {
 
       if (resourcesError) throw resourcesError;
 
+      // Search in user profiles (display names)
+      const { data: userProfiles, error: userProfilesError } = await supabase
+        .from('user_profiles')
+        .select('id, display_name, role, bio')
+        .ilike('display_name', `%${searchTerm}%`)
+        .order('display_name', { ascending: true })
+        .limit(10);
+
+      if (userProfilesError) throw userProfilesError;
+
       // Format results
       const formattedResults = [
         ...(communityPosts || []).map(post => ({
@@ -64,6 +74,14 @@ export default function SearchPage() {
           type: 'Resource',
           url: resource.url,
           category: resource.category
+        })),
+        ...(userProfiles || []).map(profile => ({
+          id: `user-${profile.id}`,
+          title: profile.display_name,
+          excerpt: profile.bio?.substring(0, 150) || 'User profile',
+          type: profile.role === 'counselor' ? 'Counselor' : 'User',
+          url: `/profile/${profile.id}`,
+          badge: profile.role === 'counselor' ? 'Counselor' : (profile.role === 'admin' ? 'Admin' : null)
         }))
       ];
 
@@ -111,9 +129,16 @@ export default function SearchPage() {
                   target={result.type === 'Resource' ? '_blank' : '_self'}
                   rel={result.type === 'Resource' ? 'noopener noreferrer' : ''}
                 >
-                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900 hover:text-primary-600 transition-colors">
-                    {result.title}
-                  </h2>
+                  <div className="flex items-center">
+                    <h2 className="text-lg sm:text-xl font-semibold text-gray-900 hover:text-primary-600 transition-colors">
+                      {result.title}
+                    </h2>
+                    {result.badge && (
+                      <span className={`ml-2 px-2 py-1 text-xs font-medium rounded-full ${result.badge === 'Counselor' ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800'}`}>
+                        {result.badge}
+                      </span>
+                    )}
+                  </div>
                   {result.excerpt && (
                     <p className="text-gray-600 mt-2 mb-3">{result.excerpt}</p>
                   )}
