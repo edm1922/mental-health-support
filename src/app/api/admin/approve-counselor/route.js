@@ -66,7 +66,7 @@ export async function POST(request, { params }) {
     }
 
     // Verify the user is an admin
-    const { data: userProfile, error: profileError } = await supabase
+    const { data: adminProfile, error: profileError } = await supabase
       .from('user_profiles')
       .select('role')
       .eq('id', userData.user.id)
@@ -80,7 +80,7 @@ export async function POST(request, { params }) {
       );
     }
 
-    if (userProfile?.role !== 'admin') {
+    if (adminProfile?.role !== 'admin') {
       return NextResponse.json(
         { error: 'Only administrators can update counselor applications' },
         { status: 403 }
