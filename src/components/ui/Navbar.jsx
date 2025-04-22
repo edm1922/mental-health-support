@@ -4,6 +4,7 @@ import { useUser } from '@/utils/useUser';
 import { useUserProfile } from '@/utils/useUserProfile';
 import { useAuth } from '@/utils/useAuth';
 import SearchBar from './SearchBar';
+import NotificationBell from './NotificationBell';
 import { useNotification } from '@/context/NotificationContext';
 
 export default function Navbar({ transparent = false }) {
@@ -108,6 +109,7 @@ export default function Navbar({ transparent = false }) {
                 window.location.href = `/search?q=${encodeURIComponent(term)}`;
               }}
             />
+            {user && <NotificationBell />}
             {user ? (
               <div className="relative ml-1 sm:ml-3">
                 <div>
