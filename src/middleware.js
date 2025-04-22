@@ -9,7 +9,7 @@ export async function middleware(request) {
   const res = NextResponse.next();
 
   // Initialize Supabase client for all routes
-  const supabase = createMiddlewareClient({ req: request, res });
+  const supabase = createMiddlewareClient({ req: request, res: res });
   const { data: { session } } = await supabase.auth.getSession();
 
   // Handle role-based redirection for the home page
