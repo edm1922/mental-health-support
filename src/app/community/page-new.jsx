@@ -314,33 +314,39 @@ function CommunityPage() {
 
       console.log('Fetching post details for ID:', postId);
 
-      // Use the basic endpoint
-      const response = await fetch('/api/forum/basic-post-view', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ id: postId })
+      // Direct database query for post
+      const { data: post, error: postError } = await supabase
+        .from('discussion_posts')
+        .select('*')
+        .eq('id', postId)
+        .single();
+
+      if (postError) {
+        console.error('Error fetching post:', postError);
+        throw new Error('Failed to fetch post: ' + postError.message);
+      }
+
+      console.log('Post fetched successfully:', post);
+
+      // Direct database query for comments
+      const { data: comments, error: commentsError } = await supabase
+        .from('discussion_comments')
+        .select('*')
+        .eq('post_id', postId)
+        .order('created_at', { ascending: true });
+
+      if (commentsError) {
+        console.error('Error fetching comments:', commentsError);
+        // Continue without comments
+      }
+
+      console.log('Comments fetched:', comments ? comments.length : 0);
+
+      // Set the selected post with comments
+      setSelectedPost({
+        ...post,
+        comments: comments || []
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch post details');
-      }
-
-      console.log('Post details fetched successfully:',
-        data.post ? `Post ID: ${data.post.id}, Title: ${data.post.title}` : 'No post data');
-      console.log('Comments fetched:', data.comments ? data.comments.length : 0);
-
-      if (data.post) {
-        setSelectedPost({
-          ...data.post,
-          comments: data.comments || []
-        });
-      } else {
-        throw new Error('Post data not found in response');
-      }
     } catch (error) {
       console.error('Error fetching post details:', error);
       setError('Could not load post details. Please try again later.');
@@ -461,56 +467,29 @@ function CommunityPage() {
         return;
       }
 
-      // First, automatically fix the schema if needed
-      console.log('Checking and fixing forum table if needed...');
-      await fetch('/api/admin/fix-forum-table', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
       console.log('Creating comment for post:', selectedPost.id);
       console.log('Comment content:', newComment);
       console.log('User ID:', session.user.id);
 
-      // Try using the API endpoint first
-      try {
-        const response = await fetch('/api/forum/create-comment', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            post_id: selectedPost.id,
-            content: newComment
-          })
-        });
+      // Direct database insert
+      console.log('Adding comment with direct database access...');
+      const { data, error } = await supabase
+        .from('discussion_comments')
+        .insert({
+          post_id: selectedPost.id,
+          user_id: session.user.id,
+          content: newComment,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select();
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to create comment');
-        }
-
-        console.log('Comment created successfully via API');
-      } catch (apiError) {
-        console.error('API error creating comment:', apiError);
-        console.log('Falling back to direct Supabase client...');
-
-        // Insert the comment using Supabase client as fallback
-        const { error } = await supabase
-          .from('discussion_comments')
-          .insert({
-            post_id: selectedPost.id,
-            content: newComment,
-            user_id: session.user.id
-          });
-
-        if (error) {
-          console.error('Error creating comment with Supabase client:', error);
-          throw error;
-        }
+      if (error) {
+        console.error('Error adding comment:', error);
+        throw new Error('Failed to add comment: ' + error.message);
       }
+
+      console.log('Comment added successfully:', data);
 
       // Reset form and refresh post details
       setNewComment("");
@@ -630,27 +609,24 @@ function CommunityPage() {
         return;
       }
 
-      // Use the basic endpoint
-      console.log('Updating post with basic endpoint...');
-      const response = await fetch('/api/forum/basic-update-post', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          postId: editingPost.id,
+      // Direct database update
+      console.log('Updating post with direct database access...');
+      const { data, error } = await supabase
+        .from('discussion_posts')
+        .update({
           title: editFormData.title,
-          content: editFormData.content
+          content: editFormData.content,
+          updated_at: new Date().toISOString()
         })
-      });
+        .eq('id', editingPost.id)
+        .select();
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update post');
+      if (error) {
+        console.error('Error updating post:', error);
+        throw new Error('Failed to update post: ' + error.message);
       }
 
-      console.log('Post updated successfully');
+      console.log('Post updated successfully:', data);
       // Show success message
       setSuccessMessage('Post updated successfully');
 
@@ -696,26 +672,23 @@ function CommunityPage() {
         return;
       }
 
-      // Use the simple endpoint
-      console.log('Updating comment with simple endpoint...');
-      const response = await fetch('/api/forum/simple-update-comment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          commentId: editingComment.id,
-          content: editCommentContent
+      // Direct database update
+      console.log('Updating comment with direct database access...');
+      const { data, error } = await supabase
+        .from('discussion_comments')
+        .update({
+          content: editCommentContent,
+          updated_at: new Date().toISOString()
         })
-      });
+        .eq('id', editingComment.id)
+        .select();
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update comment');
+      if (error) {
+        console.error('Error updating comment:', error);
+        throw new Error('Failed to update comment: ' + error.message);
       }
 
-      console.log('Comment updated successfully');
+      console.log('Comment updated successfully:', data);
       // Show success message
       setSuccessMessage('Comment updated successfully');
 
