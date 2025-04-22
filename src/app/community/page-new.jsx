@@ -826,7 +826,50 @@ function CommunityPage() {
         return;
       }
 
-      // First try the authenticated endpoint
+      // Try the direct SQL endpoint first
+      try {
+        console.log('Attempting to update post with direct SQL endpoint...');
+        const response = await fetch('/api/forum/direct-update-post-sql', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            postId: editingPost.id,
+            title: editFormData.title,
+            content: editFormData.content,
+            userId: authStatus.user?.id
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to update post with direct SQL');
+        }
+
+        console.log('Post updated successfully with direct SQL endpoint');
+        // Show success message
+        setSuccessMessage('Post updated successfully');
+
+        // Reset form and refresh posts
+        setEditingPost(null);
+        setEditFormData({ title: "", content: "" });
+
+        // If we were editing a selected post, refresh its details
+        if (selectedPost && selectedPost.id === editingPost.id) {
+          await fetchPostDetails(editingPost.id);
+        } else {
+          // Otherwise just refresh the posts list
+          await fetchPosts();
+        }
+        return;
+      } catch (directError) {
+        console.error('Error with direct SQL update:', directError);
+        console.log('Falling back to authenticated endpoint...');
+      }
+
+      // If direct SQL fails, try the authenticated endpoint
       try {
         console.log('Attempting to update post with authenticated endpoint...');
         const response = await fetch('/api/forum/update-post', {
@@ -873,7 +916,7 @@ function CommunityPage() {
         console.log('Falling back to public update endpoint...');
       }
 
-      // If we get here, try the public endpoint
+      // If we get here, try the public endpoint as a last resort
       const publicResponse = await fetch('/api/forum/public-update-post', {
         method: 'POST',
         headers: {
@@ -938,7 +981,44 @@ function CommunityPage() {
         return;
       }
 
-      // First try the authenticated endpoint
+      // Try the direct SQL endpoint first
+      try {
+        console.log('Attempting to update comment with direct SQL endpoint...');
+        const response = await fetch('/api/forum/direct-update-comment-sql', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            commentId: editingComment.id,
+            content: editCommentContent,
+            userId: authStatus.user?.id
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to update comment with direct SQL');
+        }
+
+        console.log('Comment updated successfully with direct SQL endpoint');
+        // Show success message
+        setSuccessMessage('Comment updated successfully');
+
+        // Reset form
+        setEditingComment(null);
+        setEditCommentContent("");
+
+        // Refresh post details
+        await fetchPostDetails(selectedPost.id);
+        return;
+      } catch (directError) {
+        console.error('Error with direct SQL update:', directError);
+        console.log('Falling back to authenticated endpoint...');
+      }
+
+      // If direct SQL fails, try the authenticated endpoint
       try {
         console.log('Attempting to update comment with authenticated endpoint...');
         const response = await fetch('/api/forum/update-comment', {
@@ -979,7 +1059,7 @@ function CommunityPage() {
         console.log('Falling back to public update endpoint...');
       }
 
-      // If we get here, try the public endpoint
+      // If we get here, try the public endpoint as a last resort
       const publicResponse = await fetch('/api/forum/public-update-comment', {
         method: 'POST',
         headers: {
