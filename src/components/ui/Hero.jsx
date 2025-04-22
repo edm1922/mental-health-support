@@ -49,9 +49,9 @@ export default function Hero({
       </div>
 
       {/* Content */}
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32 pb-36">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32 pb-48">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-          <div className="text-center md:text-left mb-16 relative z-10">
+          <div className="text-center md:text-left mb-8 relative z-10">
             <div className="relative px-4 py-6">
               <div className="absolute inset-0 bg-black/15 blur-xl -z-10 rounded-3xl transform scale-105"></div>
               <p className="text-white/90 font-medium mb-2 animate-fade-in text-shadow-sm">{tagline}</p>
@@ -83,7 +83,7 @@ export default function Hero({
 
       {/* Wave divider with shadow - positioned lower */}
       {wave && (
-        <div className="absolute -bottom-1 left-0 right-0">
+        <div className="absolute bottom-0 left-0 right-0">
           {/* Shadow overlay */}
           <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-black/10 to-transparent z-10"></div>
 
@@ -97,7 +97,7 @@ export default function Hero({
               fill="#ffffff"
               fillOpacity="1"
               filter="url(#shadow)"
-              d="M0,160L60,170.7C120,181,240,203,360,192C480,181,600,139,720,138.7C840,139,960,181,1080,186.7C1200,192,1320,160,1380,144L1440,128L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z"
+              d="M0,192L60,197.3C120,203,240,213,360,208C480,203,600,181,720,181.3C840,181,960,203,1080,208C1200,213,1320,203,1380,197.3L1440,192L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z"
             ></path>
           </svg>
         </div>
