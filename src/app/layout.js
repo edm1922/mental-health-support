@@ -3,9 +3,14 @@ import './globals.css'
 import '../styles/animations.css'
 import dynamic from 'next/dynamic'
 
-// Dynamically import the AutoAuthFixWrapper with no SSR
+// Dynamically import components with no SSR
 const AutoAuthFixWrapper = dynamic(
   () => import('../components/AutoAuthFixWrapper'),
+  { ssr: false }
+)
+
+const NotificationProviderWrapper = dynamic(
+  () => import('../components/NotificationProviderWrapper'),
   { ssr: false }
 )
 
@@ -34,9 +39,11 @@ export default function RootLayout({ children }) {
       </head>
       <body className={`${poppins.variable} ${manrope.variable} font-sans antialiased`}>
         <AutoAuthFixWrapper />
-        <div className="page-transition">
-          {children}
-        </div>
+        <NotificationProviderWrapper>
+          <div className="page-transition">
+            {children}
+          </div>
+        </NotificationProviderWrapper>
       </body>
     </html>
   )

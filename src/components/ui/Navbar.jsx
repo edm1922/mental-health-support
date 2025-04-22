@@ -3,11 +3,14 @@ import Link from 'next/link';
 import { useUser } from '@/utils/useUser';
 import { useUserProfile } from '@/utils/useUserProfile';
 import { useAuth } from '@/utils/useAuth';
+import SearchBar from './SearchBar';
+import { useNotification } from '@/context/NotificationContext';
 
 export default function Navbar({ transparent = false }) {
   const { data: user } = useUser();
   const { profile: userProfile, loading: profileLoading } = useUserProfile();
   const { signOut } = useAuth();
+  const { showSuccess, showError } = useNotification();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -48,9 +51,11 @@ export default function Navbar({ transparent = false }) {
   const handleSignOut = async () => {
     try {
       await signOut();
+      showSuccess('Successfully signed out');
       window.location.href = '/';
     } catch (error) {
       console.error('Error signing out:', error);
+      showError('Failed to sign out. Please try again.');
     }
   };
 
@@ -94,9 +99,17 @@ export default function Navbar({ transparent = false }) {
             </div>
           </div>
 
-          <div className="flex items-center">
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            <SearchBar
+              className="hidden sm:block"
+              placeholder="Search..."
+              onSearch={(term) => {
+                showInfo(`Searching for: ${term}`);
+                // Implement actual search functionality here
+              }}
+            />
             {user ? (
-              <div className="relative ml-3">
+              <div className="relative ml-1 sm:ml-3">
                 <div>
                   <button
                     onClick={() => setProfileMenuOpen(!profileMenuOpen)}
@@ -200,6 +213,17 @@ export default function Navbar({ transparent = false }) {
       {mobileMenuOpen && (
         <div className="md:hidden bg-white shadow-lg fixed top-16 left-0 right-0 z-50 max-h-[80vh] overflow-y-auto">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+            <div className="px-3 py-2 mb-2">
+              <SearchBar
+                className="block sm:hidden w-full"
+                placeholder="Search..."
+                onSearch={(term) => {
+                  showInfo(`Searching for: ${term}`);
+                  setMobileMenuOpen(false);
+                  // Implement actual search functionality here
+                }}
+              />
+            </div>
             <Link
               href="/home"
               className="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b border-gray-100"
