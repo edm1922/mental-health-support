@@ -70,7 +70,7 @@ export default function Navbar({ transparent = false }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Link href="/home" className={`flex-shrink-0 flex items-center font-bold text-xl ${logoColor}`}>
+            <Link href="/home" className={`flex-shrink-0 flex items-center font-bold text-lg md:text-xl truncate max-w-[180px] sm:max-w-none ${logoColor}`}>
               Mental Health Support
             </Link>
             <div className="hidden md:ml-8 md:flex md:space-x-6">
@@ -110,7 +110,7 @@ export default function Navbar({ transparent = false }) {
                       {userProfile?.display_name ? userProfile.display_name.charAt(0).toUpperCase() :
                        user.email ? user.email.charAt(0).toUpperCase() : 'U'}
                     </div>
-                    <span className={`ml-2 ${textColor}`}>{userProfile?.display_name || user.email}</span>
+                    <span className={`ml-2 hidden sm:inline ${textColor} max-w-[100px] truncate`}>{userProfile?.display_name || user.email}</span>
                     <svg className={`ml-1 h-5 w-5 ${textColor}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                     </svg>
@@ -178,7 +178,7 @@ export default function Navbar({ transparent = false }) {
             <div className="flex md:hidden ml-4">
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className={`inline-flex items-center justify-center p-2 rounded-md ${textColor} hover:text-primary-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500`}
+                className={`inline-flex items-center justify-center p-2 rounded-md ${textColor} hover:text-primary-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 active:bg-gray-200`}
               >
                 <span className="sr-only">Open main menu</span>
                 {mobileMenuOpen ? (
@@ -198,37 +198,87 @@ export default function Navbar({ transparent = false }) {
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-white shadow-lg animate-slide-in-right">
+        <div className="md:hidden bg-white shadow-lg fixed top-16 left-0 right-0 z-50 max-h-[80vh] overflow-y-auto">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            <Link href="/home" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50">
+            <Link
+              href="/home"
+              className="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b border-gray-100"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Home
             </Link>
-            <Link href="/mental-health-checkin" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50">
+            <Link
+              href="/mental-health-checkin"
+              className="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b border-gray-100"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Daily Check-in
             </Link>
-            <Link href="/book-session" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50">
+            <Link
+              href="/book-session"
+              className="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b border-gray-100"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Book a Session
             </Link>
-            <Link href="/community" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50">
+            <Link
+              href="/community"
+              className="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b border-gray-100"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Community
             </Link>
 
             {user && (
-              <Link href="/messages" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50">
+              <Link
+                href="/messages"
+                className="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b border-gray-100"
+                onClick={() => setMobileMenuOpen(false)}
+              >
                 Messages
               </Link>
             )}
 
+            {user && (
+              <Link
+                href="/profile"
+                className="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b border-gray-100"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Your Profile
+              </Link>
+            )}
+
             {userRole === 'counselor' && (
-              <Link href="/counselor" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50">
+              <Link
+                href="/counselor"
+                className="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b border-gray-100"
+                onClick={() => setMobileMenuOpen(false)}
+              >
                 Counselor Dashboard
               </Link>
             )}
 
             {userRole === 'admin' && (
-              <Link href="/admin" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50">
+              <Link
+                href="/admin"
+                className="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b border-gray-100"
+                onClick={() => setMobileMenuOpen(false)}
+              >
                 Admin Dashboard
               </Link>
+            )}
+
+            {user && (
+              <button
+                onClick={() => {
+                  handleSignOut();
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full text-left px-3 py-3 rounded-md text-base font-medium text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                Sign Out
+              </button>
             )}
           </div>
         </div>
