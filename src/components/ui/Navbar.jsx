@@ -104,7 +104,8 @@ export default function Navbar({ transparent = false }) {
               className="block"
               placeholder="Search the site..."
               onSearch={(term) => {
-                showInfo(`Searching for: ${term}`);
+                // Use showSuccess instead of showInfo
+                showSuccess(`Searching for: ${term}`);
                 // Implement actual search functionality here
               }}
             />
@@ -218,7 +219,8 @@ export default function Navbar({ transparent = false }) {
                 className="block sm:hidden w-full"
                 placeholder="Search the site..."
                 onSearch={(term) => {
-                  showInfo(`Searching for: ${term}`);
+                  // Use showSuccess instead of showInfo
+                  showSuccess(`Searching for: ${term}`);
                   setMobileMenuOpen(false);
                   // Implement actual search functionality here
                 }}

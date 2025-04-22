@@ -3,11 +3,16 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 const SearchBar = ({ className = '', placeholder = 'Search...', onSearch }) => {
-  const [isExpanded, setIsExpanded] = useState(window?.innerWidth >= 640);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const inputRef = useRef(null);
   const searchContainerRef = useRef(null);
   const router = useRouter();
+
+  // Initialize expanded state based on screen width (client-side only)
+  useEffect(() => {
+    setIsExpanded(window.innerWidth >= 640);
+  }, []);
 
   // Handle click outside to collapse search on mobile
   useEffect(() => {

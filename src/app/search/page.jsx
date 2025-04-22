@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { useUser } from '@/utils/useUser';
 import { useNotification } from '@/context/NotificationContext';
 import Navbar from '@/components/ui/Navbar';
+import { supabase } from '@/utils/supabaseClient';
 
 export default function SearchPage() {
   const searchParams = useSearchParams();
@@ -11,7 +12,7 @@ export default function SearchPage() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const { data: user } = useUser();
-  const { showInfo, showError } = useNotification();
+  const { showSuccess, showError } = useNotification();
 
   useEffect(() => {
     if (query) {
@@ -25,22 +26,49 @@ export default function SearchPage() {
   const performSearch = async (searchTerm) => {
     setLoading(true);
     try {
-      // This is a mock search function
-      // In a real application, you would call an API endpoint
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      
-      // Mock results
-      const mockResults = [
-        { id: 1, title: 'Mental Health Resources', type: 'page', url: '/resources' },
-        { id: 2, title: 'Anxiety Management Techniques', type: 'article', url: '/articles/anxiety' },
-        { id: 3, title: 'Depression Support Group', type: 'community', url: '/community/depression' },
-        { id: 4, title: 'Mindfulness Meditation', type: 'resource', url: '/resources/mindfulness' },
-      ].filter(item => 
-        item.title.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      
-      setResults(mockResults);
-      showInfo(`Found ${mockResults.length} results for "${searchTerm}"`);
+      // Search in community posts
+      const { data: communityPosts, error: communityError } = await supabase
+        .from('community_posts')
+        .select('id, title, content, created_at, approved')
+        .or(`title.ilike.%${searchTerm}%, content.ilike.%${searchTerm}%`)
+        .eq('approved', true)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (communityError) throw communityError;
+
+      // Search in resources
+      const { data: resources, error: resourcesError } = await supabase
+        .from('resources')
+        .select('id, title, description, url, category')
+        .or(`title.ilike.%${searchTerm}%, description.ilike.%${searchTerm}%`)
+        .order('title', { ascending: true })
+        .limit(10);
+
+      if (resourcesError) throw resourcesError;
+
+      // Format results
+      const formattedResults = [
+        ...(communityPosts || []).map(post => ({
+          id: `community-${post.id}`,
+          title: post.title,
+          excerpt: post.content?.substring(0, 150) + '...',
+          type: 'Community Post',
+          url: `/community/post/${post.id}`,
+          date: new Date(post.created_at).toLocaleDateString()
+        })),
+        ...(resources || []).map(resource => ({
+          id: `resource-${resource.id}`,
+          title: resource.title,
+          excerpt: resource.description?.substring(0, 150) + '...',
+          type: 'Resource',
+          url: resource.url,
+          category: resource.category
+        }))
+      ];
+
+      setResults(formattedResults);
+      showSuccess(`Found ${formattedResults.length} results for "${searchTerm}"`);
     } catch (error) {
       console.error('Search error:', error);
       showError('Failed to perform search. Please try again.');
@@ -53,7 +81,7 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      
+
       <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
@@ -73,24 +101,36 @@ export default function SearchPage() {
         ) : results.length > 0 ? (
           <div className="space-y-4">
             {results.map((result) => (
-              <div 
-                key={result.id} 
+              <div
+                key={result.id}
                 className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-4 sm:p-6"
               >
-                <a 
+                <a
                   href={result.url}
                   className="block"
+                  target={result.type === 'Resource' ? '_blank' : '_self'}
+                  rel={result.type === 'Resource' ? 'noopener noreferrer' : ''}
                 >
                   <h2 className="text-lg sm:text-xl font-semibold text-gray-900 hover:text-primary-600 transition-colors">
                     {result.title}
                   </h2>
-                  <div className="flex items-center mt-2">
+                  {result.excerpt && (
+                    <p className="text-gray-600 mt-2 mb-3">{result.excerpt}</p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800 capitalize">
                       {result.type}
                     </span>
-                    <span className="text-sm text-gray-500 ml-2">
-                      {result.url}
-                    </span>
+                    {result.category && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        {result.category}
+                      </span>
+                    )}
+                    {result.date && (
+                      <span className="text-xs text-gray-500">
+                        {result.date}
+                      </span>
+                    )}
                   </div>
                 </a>
               </div>
