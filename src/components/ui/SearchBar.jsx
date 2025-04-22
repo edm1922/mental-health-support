@@ -11,26 +11,41 @@ const SearchBar = ({ className = '', placeholder = 'Search...', onSearch }) => {
 
   // Initialize expanded state based on screen width (client-side only)
   useEffect(() => {
-    setIsExpanded(window.innerWidth >= 640);
+    // Check if window is defined (client-side)
+    if (typeof window !== 'undefined') {
+      setIsExpanded(window.innerWidth >= 640);
+
+      // Also add resize listener to adjust on window resize
+      const handleResize = () => {
+        setIsExpanded(window.innerWidth >= 640);
+      };
+
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
   }, []);
 
   // Handle click outside to collapse search on mobile
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
-        setIsExpanded(false);
-      }
-    };
+    // Check if document is defined (client-side)
+    if (typeof document !== 'undefined') {
+      const handleClickOutside = (event) => {
+        if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
+          setIsExpanded(false);
+        }
+      };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
   }, []);
 
   // Focus input when expanded
   useEffect(() => {
-    if (isExpanded && inputRef.current) {
+    // Only run on client side
+    if (typeof window !== 'undefined' && isExpanded && inputRef.current) {
       inputRef.current.focus();
     }
   }, [isExpanded]);
@@ -52,11 +67,11 @@ const SearchBar = ({ className = '', placeholder = 'Search...', onSearch }) => {
       ref={searchContainerRef}
       className={`relative ${className}`}
     >
-      <div className={`flex items-center transition-all duration-300 bg-white/20 backdrop-blur-md rounded-full border border-white/30 shadow-lg ${isExpanded ? 'w-full sm:w-64' : 'w-10'}`}>
+      <div className={`flex items-center transition-all duration-300 bg-white/30 backdrop-blur-md rounded-full border border-white/40 shadow-lg ${isExpanded ? 'w-full sm:w-64' : 'w-10'}`}>
         <button
           type="button"
           onClick={() => setIsExpanded(!isExpanded)}
-          className="flex-shrink-0 text-white hover:text-blue-200 focus:outline-none p-2 rounded-full"
+          className="flex-shrink-0 text-primary-600 hover:text-primary-800 focus:outline-none p-2 rounded-full"
           aria-label={isExpanded ? 'Close search' : 'Open search'}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -74,7 +89,7 @@ const SearchBar = ({ className = '', placeholder = 'Search...', onSearch }) => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder={placeholder}
-            className="w-full bg-transparent border-0 rounded-full py-2 px-4 text-white placeholder-gray-300 text-sm focus:outline-none focus:ring-1 focus:ring-white/50"
+            className="w-full bg-transparent border-0 rounded-full py-2 px-4 text-gray-800 placeholder-gray-500 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
             disabled={!isExpanded}
           />
         </form>
