@@ -328,7 +328,7 @@ function CommunityPage() {
 
       console.log('Fetching post details for ID:', postId);
 
-      // Try using the direct SQL endpoint first
+      // Try using the direct SQL endpoint first - this is our most reliable method
       try {
         console.log('Attempting to fetch post with direct SQL endpoint...');
         const response = await fetch(`/api/forum/direct-post-view`, {
@@ -339,13 +339,17 @@ function CommunityPage() {
           body: JSON.stringify({ id: postId })
         });
 
+        // Even if response is not ok, try to parse the error message
+        const data = await response.json();
+
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to fetch post details');
+          console.error('Direct SQL endpoint returned error:', data.error || 'Unknown error');
+          throw new Error(data.error || 'Failed to fetch post details');
         }
 
-        const data = await response.json();
-        console.log('Post details fetched successfully via direct SQL:', data);
+        console.log('Post details fetched successfully via direct SQL:',
+          data.post ? `Post ID: ${data.post.id}, Title: ${data.post.title}` : 'No post data');
+        console.log('Comments fetched:', data.comments ? data.comments.length : 0);
 
         if (data.post) {
           setSelectedPost({
@@ -353,6 +357,8 @@ function CommunityPage() {
             comments: data.comments || []
           });
           return;
+        } else {
+          throw new Error('Post data not found in response');
         }
       } catch (directError) {
         console.error('Direct SQL error fetching post details:', directError);
@@ -369,13 +375,16 @@ function CommunityPage() {
           body: JSON.stringify({ id: postId })
         });
 
+        // Even if response is not ok, try to parse the error message
+        const data = await response.json();
+
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to fetch post details');
+          console.error('Public API endpoint returned error:', data.error || 'Unknown error');
+          throw new Error(data.error || 'Failed to fetch post details');
         }
 
-        const data = await response.json();
-        console.log('Post details fetched successfully via public API:', data);
+        console.log('Post details fetched successfully via public API:',
+          data.post ? `Post ID: ${data.post.id}, Title: ${data.post.title}` : 'No post data');
 
         if (data.post) {
           setSelectedPost({
@@ -383,67 +392,87 @@ function CommunityPage() {
             comments: data.comments || []
           });
           return;
+        } else {
+          throw new Error('Post data not found in response');
         }
       } catch (apiError) {
         console.error('Public API error fetching post details:', apiError);
         console.log('Falling back to direct Supabase client...');
       }
 
+      // Last resort: Try direct SQL query via exec_sql RPC
       try {
-        // Try with join query first
-        // Fetch the post
-        const { data: post, error: postError } = await supabase
-          .from('discussion_posts')
-          .select(`
-            *,
-            user_profiles:user_id(display_name)
-          `)
-          .eq('id', postId)
-          .single();
+        console.log('Attempting direct SQL query via RPC...');
+
+        // Get the post with a simple SQL query
+        const { data: postResult, error: postError } = await supabase.rpc('exec_sql', {
+          sql: `SELECT * FROM public.discussion_posts WHERE id = ${postId};`
+        });
 
         if (postError) {
-          // If there's a relationship error, try a simpler query
-          if (postError.message.includes('relationship')) {
-            throw new Error('Relationship error, trying simpler query');
-          }
+          console.error('Error with direct SQL post query:', postError);
           throw postError;
         }
 
-        // Fetch comments for the post
-        const { data: comments, error: commentsError } = await supabase
-          .from('discussion_comments')
-          .select(`
-            *,
-            user_profiles:user_id(display_name)
-          `)
-          .eq('post_id', postId)
-          .order('created_at', { ascending: true });
-
-        if (commentsError) {
-          // If there's a relationship error, try a simpler query
-          if (commentsError.message.includes('relationship')) {
-            throw new Error('Relationship error in comments, trying simpler query');
-          }
-          throw commentsError;
+        // Handle different possible formats of the result
+        let post = null;
+        if (postResult && Array.isArray(postResult) && postResult.length > 0) {
+          post = postResult[0];
+        } else if (postResult && typeof postResult === 'object') {
+          post = postResult;
         }
 
-        console.log('Comments fetched:', comments ? comments.length : 0);
+        if (!post) {
+          throw new Error('Post not found');
+        }
 
-        // Format post with author information
+        // Get comments with a simple SQL query
+        const { data: commentsResult, error: commentsError } = await supabase.rpc('exec_sql', {
+          sql: `SELECT * FROM public.discussion_comments WHERE post_id = ${postId} ORDER BY created_at ASC;`
+        });
+
+        // Handle different possible formats of the comments result
+        let comments = [];
+        if (!commentsError) {
+          if (commentsResult && Array.isArray(commentsResult)) {
+            comments = commentsResult;
+          } else if (commentsResult && typeof commentsResult === 'object') {
+            comments = [commentsResult];
+          }
+        }
+
+        console.log('Direct SQL query successful - Post found, Comments:', comments.length);
+
+        // Format the post with minimal information
         const formattedPost = {
-          ...post,
-          author_name: post.user_profiles?.display_name || 'Unknown User',
+          id: post.id || 0,
+          user_id: post.user_id || 'anonymous',
+          title: post.title || 'Untitled Post',
+          content: post.content || 'No content',
+          created_at: post.created_at || new Date().toISOString(),
+          updated_at: post.updated_at || new Date().toISOString(),
+          author_name: 'Anonymous',
+          is_approved: post.is_approved !== undefined ? post.is_approved : true,
           comments: comments.map(comment => ({
-            ...comment,
-            author_name: comment.user_profiles?.display_name || 'Unknown User'
+            id: comment.id || 0,
+            post_id: comment.post_id || postId,
+            user_id: comment.user_id || 'anonymous',
+            content: comment.content || 'No comment',
+            created_at: comment.created_at || new Date().toISOString(),
+            updated_at: comment.updated_at || new Date().toISOString(),
+            author_name: 'Anonymous'
           }))
         };
 
         setSelectedPost(formattedPost);
-      } catch (joinError) {
-        console.log('Join query failed, trying simple query:', joinError);
+        return;
+      } catch (directSqlError) {
+        console.error('Direct SQL RPC query failed:', directSqlError);
+        console.log('Falling back to Supabase client queries...');
+      }
 
-        // Try with simple queries
+      // Final fallback: Try with Supabase client
+      try {
         // Fetch the post
         const { data: post, error: postError } = await supabase
           .from('discussion_posts')
@@ -462,80 +491,20 @@ function CommunityPage() {
           .eq('post_id', postId)
           .order('created_at', { ascending: true });
 
-        if (commentsError && !commentsError.message.includes('does not exist')) {
-          throw commentsError;
-        }
+        // Format post with minimal information
+        const formattedPost = {
+          ...post,
+          author_name: 'Anonymous',
+          comments: (comments || []).map(comment => ({
+            ...comment,
+            author_name: 'Anonymous'
+          }))
+        };
 
-        console.log('Comments fetched (simple query):', comments ? comments.length : 0);
-
-        // Get all user IDs from post and comments
-        const userIds = [post.user_id];
-        if (comments && comments.length > 0) {
-          comments.forEach(comment => {
-            if (comment.user_id && !userIds.includes(comment.user_id)) {
-              userIds.push(comment.user_id);
-            }
-          });
-        }
-
-        // Filter out any null or undefined IDs
-        const validUserIds = userIds.filter(Boolean);
-
-        if (validUserIds.length > 0) {
-          // Get user profiles for all users
-          const { data: profiles, error: profilesError } = await supabase
-            .from('user_profiles')
-            .select('id, display_name')
-            .in('id', validUserIds);
-
-          if (!profilesError && profiles) {
-            // Create a map of user_id to display_name
-            const userMap = {};
-            profiles.forEach(profile => {
-              userMap[profile.id] = profile.display_name;
-            });
-
-            // Format post with author information
-            const formattedPost = {
-              ...post,
-              author_name: post.user_id && userMap[post.user_id] ?
-                userMap[post.user_id] :
-                (post.user_id ? 'User ' + post.user_id.substring(0, 6) : 'Unknown User'),
-              comments: (comments || []).map(comment => ({
-                ...comment,
-                author_name: comment.user_id && userMap[comment.user_id] ?
-                  userMap[comment.user_id] :
-                  (comment.user_id ? 'User ' + comment.user_id.substring(0, 6) : 'Unknown User')
-              }))
-            };
-
-            setSelectedPost(formattedPost);
-          } else {
-            // Format with generic user IDs if we can't get profiles
-            const formattedPost = {
-              ...post,
-              author_name: post.user_id ? 'User ' + post.user_id.substring(0, 6) : 'Unknown User',
-              comments: (comments || []).map(comment => ({
-                ...comment,
-                author_name: comment.user_id ? 'User ' + comment.user_id.substring(0, 6) : 'Unknown User'
-              }))
-            };
-
-            setSelectedPost(formattedPost);
-          }
-        } else {
-          // Format post without author information
-          const formattedPost = {
-            ...post,
-            author_name: 'Unknown User',
-            comments: (comments || []).map(comment => ({
-              ...comment,
-              author_name: 'Unknown User'
-            }))
-          };
-
-          setSelectedPost(formattedPost);
-        }
+        setSelectedPost(formattedPost);
+      } catch (finalError) {
+        console.error('All fallback methods failed:', finalError);
+        throw finalError; // Let the outer catch handle this
       }
     } catch (error) {
       console.error('Error fetching post details:', error);
