@@ -126,7 +126,7 @@ export async function POST(request, { params }) {
       console.log('Updating user role to counselor for user_id:', application.user_id);
 
       // First, check if the user profile exists
-      const { data: userProfile, error: profileCheckError } = await supabase
+      const { data: applicantProfile, error: profileCheckError } = await supabase
         .from('user_profiles')
         .select('id, role')
         .eq('id', application.user_id)
@@ -140,11 +140,11 @@ export async function POST(request, { params }) {
         );
       }
 
-      console.log('Found user profile:', userProfile);
+      console.log('Found user profile:', applicantProfile);
 
       // Update the user's role to counselor
       console.log('Attempting to update user role to counselor for user ID:', application.user_id);
-      console.log('Current user profile:', userProfile);
+      console.log('Current user profile:', applicantProfile);
 
       // First check if the exec_sql function exists
       try {
