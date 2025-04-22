@@ -700,8 +700,45 @@ function CommunityPage() {
       setError(null);
       setSuccessMessage(null);
 
-      // Call the API to delete the post
-      const response = await fetch('/api/forum/delete-post', {
+      // First try the authenticated endpoint
+      try {
+        console.log('Attempting to delete post with authenticated endpoint...');
+        const response = await fetch('/api/forum/delete-post', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ postId })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          // If it's an authentication error, try the public endpoint
+          if (response.status === 401) {
+            console.log('Authentication error, trying public endpoint...');
+            throw new Error('Authentication required, trying public endpoint');
+          }
+          throw new Error(data.error || 'Failed to delete post');
+        }
+
+        console.log('Post deleted successfully with authenticated endpoint');
+        // Show success message
+        setSuccessMessage('Post deleted successfully');
+
+        // Go back to the post list
+        setSelectedPost(null);
+
+        // Refresh the posts list
+        await fetchPosts();
+        return;
+      } catch (authError) {
+        console.error('Error with authenticated delete:', authError);
+        console.log('Falling back to public delete endpoint...');
+      }
+
+      // If we get here, try the public endpoint
+      const publicResponse = await fetch('/api/forum/public-delete-post', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -709,12 +746,13 @@ function CommunityPage() {
         body: JSON.stringify({ postId })
       });
 
-      const data = await response.json();
+      const publicData = await publicResponse.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to delete post');
+      if (!publicResponse.ok) {
+        throw new Error(publicData.error || 'Failed to delete post with public endpoint');
       }
 
+      console.log('Post deleted successfully with public endpoint');
       // Show success message
       setSuccessMessage('Post deleted successfully');
 
@@ -866,8 +904,42 @@ function CommunityPage() {
       setError(null);
       setSuccessMessage(null);
 
-      // Call the API to delete the comment
-      const response = await fetch('/api/forum/delete-comment', {
+      // First try the authenticated endpoint
+      try {
+        console.log('Attempting to delete comment with authenticated endpoint...');
+        const response = await fetch('/api/forum/delete-comment', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ commentId })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          // If it's an authentication error, try the public endpoint
+          if (response.status === 401) {
+            console.log('Authentication error, trying public endpoint...');
+            throw new Error('Authentication required, trying public endpoint');
+          }
+          throw new Error(data.error || 'Failed to delete comment');
+        }
+
+        console.log('Comment deleted successfully with authenticated endpoint');
+        // Show success message
+        setSuccessMessage('Comment deleted successfully');
+
+        // Refresh post details
+        await fetchPostDetails(selectedPost.id);
+        return;
+      } catch (authError) {
+        console.error('Error with authenticated delete:', authError);
+        console.log('Falling back to public delete endpoint...');
+      }
+
+      // If we get here, try the public endpoint
+      const publicResponse = await fetch('/api/forum/public-delete-comment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -875,12 +947,13 @@ function CommunityPage() {
         body: JSON.stringify({ commentId })
       });
 
-      const data = await response.json();
+      const publicData = await publicResponse.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to delete comment');
+      if (!publicResponse.ok) {
+        throw new Error(publicData.error || 'Failed to delete comment with public endpoint');
       }
 
+      console.log('Comment deleted successfully with public endpoint');
       // Show success message
       setSuccessMessage('Comment deleted successfully');
 
