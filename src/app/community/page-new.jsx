@@ -24,6 +24,8 @@ function CommunityPage() {
   const [showNewPostForm, setShowNewPostForm] = useState(false);
   const [authStatus, setAuthStatus] = useState({ authenticated: false, checking: true });
   const [newComment, setNewComment] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [postToDelete, setPostToDelete] = useState(null);
 
   // Check authentication status directly
   useEffect(() => {
@@ -556,6 +558,47 @@ function CommunityPage() {
     }
   };
 
+  const handleDeletePost = async (postId) => {
+    try {
+      if (!confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      // Call the API to delete the post
+      const response = await fetch('/api/forum/delete-post', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ postId })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete post');
+      }
+
+      // Show success message
+      setSuccessMessage('Post deleted successfully');
+
+      // Go back to the post list
+      setSelectedPost(null);
+
+      // Refresh the posts list
+      await fetchPosts();
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      setError(error.message || 'Could not delete post. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSignIn = () => {
     window.location.href = `/account/signin?callbackUrl=${encodeURIComponent("/community")}`;
   };
@@ -692,7 +735,10 @@ function CommunityPage() {
                   Edit
                 </ModernButton>
                 <ModernButton
-                  onClick={() => {/* Handle delete */}}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeletePost(selectedPost.id);
+                  }}
                   variant="outline"
                   className="text-sm px-3 py-1 text-red-600 border-red-200 hover:bg-red-50"
                 >
@@ -778,6 +824,20 @@ function CommunityPage() {
                         : post.content}
                     </p>
                   </div>
+                  {authStatus.authenticated && authStatus.user && post.user_id === authStatus.user.id && (
+                    <div className="ml-4">
+                      <ModernButton
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeletePost(post.id);
+                        }}
+                        variant="outline"
+                        className="text-sm px-3 py-1 text-red-600 border-red-200 hover:bg-red-50"
+                      >
+                        Delete
+                      </ModernButton>
+                    </div>
+                  )}
                 </div>
               </GlassCard>
             ))
