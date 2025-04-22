@@ -55,51 +55,72 @@ export async function POST(request) {
       }
 
       // Fetch the post with author information
-      const { data: postResult, error: postError } = await supabase.rpc('exec_sql', {
-        sql: `
-          SELECT
-            p.id,
-            p.user_id,
-            p.title,
-            p.content,
-            p.created_at,
-            p.updated_at,
-            p.is_approved,
-            up.display_name as author_name,
-            up.role as author_role
-          FROM
-            public.discussion_posts p
-          LEFT JOIN
-            public.user_profiles up ON p.user_id = up.id
-          WHERE
-            p.id = ${id};
-        `
-      });
+      let postResult;
+      let postError;
+
+      try {
+        const result = await supabase.rpc('exec_sql', {
+          sql: `
+            SELECT
+              p.id,
+              p.user_id,
+              p.title,
+              p.content,
+              p.created_at,
+              p.updated_at,
+              p.is_approved,
+              up.display_name as author_name,
+              up.role as author_role
+            FROM
+              public.discussion_posts p
+            LEFT JOIN
+              public.user_profiles up ON p.user_id = up.id
+            WHERE
+              p.id = ${id};
+          `
+        });
+
+        postResult = result.data;
+        postError = result.error;
+      } catch (err) {
+        postError = err;
+      }
 
       if (postError) {
         console.error('Error fetching post with SQL:', postError);
         // Try a simpler query without the join
-        const { data: simplePostResult, error: simplePostError } = await supabase.rpc('exec_sql', {
-          sql: `SELECT * FROM public.discussion_posts WHERE id = ${id};`
-        });
+        try {
+          const simpleResult = await supabase.rpc('exec_sql', {
+            sql: `SELECT * FROM public.discussion_posts WHERE id = ${id};`
+          });
 
-        if (simplePostError) {
-          console.error('Error with simple post query:', simplePostError);
+          const simplePostResult = simpleResult.data;
+          const simplePostError = simpleResult.error;
+
+          if (simplePostError) {
+            console.error('Error with simple post query:', simplePostError);
+            return NextResponse.json(
+              { error: 'Failed to fetch post: ' + simplePostError.message },
+              { status: 500 }
+            );
+          }
+
+          // Use the simple result
+          if (simplePostResult && Array.isArray(simplePostResult) && simplePostResult.length > 0) {
+            postResult = simplePostResult;
+          } else if (simplePostResult && typeof simplePostResult === 'object') {
+            postResult = [simplePostResult];
+          } else {
+            return NextResponse.json(
+              { error: 'Post not found' },
+              { status: 404 }
+            );
+          }
+        } catch (simpleQueryError) {
+          console.error('Error with simple post query:', simpleQueryError);
           return NextResponse.json(
-            { error: 'Failed to fetch post: ' + simplePostError.message },
+            { error: 'Failed to fetch post: ' + simpleQueryError.message },
             { status: 500 }
-          );
-        }
-
-        // Use the simple result
-        if (simplePostResult && Array.isArray(simplePostResult) && simplePostResult.length > 0) {
-          postResult = simplePostResult;
-        } else if (simplePostResult && typeof simplePostResult === 'object') {
-          postResult = [simplePostResult];
-        } else {
-          return NextResponse.json(
-            { error: 'Post not found' },
-            { status: 404 }
           );
         }
       }
