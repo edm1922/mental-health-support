@@ -3,6 +3,12 @@ import './globals.css'
 import '../styles/animations.css'
 import dynamic from 'next/dynamic'
 
+// Import PageTransition component
+const PageTransition = dynamic(
+  () => import('../components/PageTransition'),
+  { ssr: false }
+)
+
 // Dynamically import components with no SSR
 const AutoAuthFixWrapper = dynamic(
   () => import('../components/AutoAuthFixWrapper'),
@@ -40,6 +46,7 @@ export default function RootLayout({ children }) {
       <body className={`${poppins.variable} ${manrope.variable} font-sans antialiased`}>
         <AutoAuthFixWrapper />
         <NotificationProviderWrapper>
+          <PageTransition />
           <div className="page-transition">
             {children}
           </div>

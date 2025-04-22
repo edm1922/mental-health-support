@@ -7,6 +7,7 @@ import { useNotification } from '@/context/NotificationContext';
 import Navbar from '@/components/ui/Navbar';
 import Footer from '@/components/ui/Footer';
 import Link from 'next/link';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 export default function UserProfilePage() {
   const params = useParams();
@@ -56,7 +57,7 @@ export default function UserProfilePage() {
       <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         {loading ? (
           <div className="flex justify-center items-center py-12">
-            <div className="w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+            <LoadingSpinner size="large" color="primary" text="Loading user profile..." />
           </div>
         ) : error ? (
           <div className="bg-white rounded-xl shadow-sm p-8 text-center">
@@ -83,10 +84,10 @@ export default function UserProfilePage() {
                     <h1 className="text-2xl font-bold text-gray-900">{profile.display_name}</h1>
                     {profile.role && (
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
-                        profile.role === 'counselor' 
-                          ? 'bg-green-100 text-green-800' 
-                          : profile.role === 'admin' 
-                            ? 'bg-purple-100 text-purple-800' 
+                        profile.role === 'counselor'
+                          ? 'bg-green-100 text-green-800'
+                          : profile.role === 'admin'
+                            ? 'bg-purple-100 text-purple-800'
                             : 'bg-blue-100 text-blue-800'
                       }`}>
                         {profile.role}
@@ -94,9 +95,9 @@ export default function UserProfilePage() {
                     )}
                   </div>
                 </div>
-                
+
                 {currentUser && currentUser.id !== userId && profile.role === 'counselor' && (
-                  <Link 
+                  <Link
                     href={`/book-session?counselor=${profile.id}`}
                     className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
                   >
@@ -132,7 +133,7 @@ export default function UserProfilePage() {
                           <h3 className="text-md font-semibold text-gray-900 mb-2">Specializations</h3>
                           <div className="flex flex-wrap gap-2">
                             {profile.specializations.map((specialization, index) => (
-                              <span 
+                              <span
                                 key={index}
                                 className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm"
                               >
@@ -164,7 +165,7 @@ export default function UserProfilePage() {
                       <h3 className="text-md font-semibold text-gray-900 mb-2">Interests</h3>
                       <div className="flex flex-wrap gap-2">
                         {profile.mental_health_interests.map((interest, index) => (
-                          <span 
+                          <span
                             key={index}
                             className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm"
                           >

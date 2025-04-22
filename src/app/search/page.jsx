@@ -5,6 +5,7 @@ import { useUser } from '@/utils/useUser';
 import { useNotification } from '@/context/NotificationContext';
 import Navbar from '@/components/ui/Navbar';
 import { supabase } from '@/utils/supabaseClient';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 export default function SearchPage() {
   const searchParams = useSearchParams();
@@ -138,7 +139,7 @@ export default function SearchPage() {
 
         {loading ? (
           <div className="flex justify-center items-center py-12">
-            <div className="w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+            <LoadingSpinner size="large" color="primary" text="Searching..." />
           </div>
         ) : results.length > 0 ? (
           <div className="space-y-4">
