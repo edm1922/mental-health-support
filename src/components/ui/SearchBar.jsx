@@ -67,7 +67,7 @@ const SearchBar = ({ className = '', placeholder = 'Search...', onSearch }) => {
       ref={searchContainerRef}
       className={`relative ${className}`}
     >
-      <div className={`flex items-center transition-all duration-300 bg-white/30 backdrop-blur-md rounded-full border border-white/40 shadow-lg ${isExpanded ? 'w-full sm:w-64' : 'w-10'}`}>
+      <div className={`flex items-center transition-all duration-300 bg-white/40 backdrop-blur-md rounded-full border border-white/50 shadow-lg ${isExpanded ? 'w-full sm:w-64' : 'w-10'}`}>
         <button
           type="button"
           onClick={() => setIsExpanded(!isExpanded)}
