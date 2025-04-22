@@ -7,8 +7,6 @@ const nextConfig = {
     config.externals = [...config.externals, { canvas: "canvas" }]; // required to make pdfjs work
     return config;
   },
-  // Configure output for deployment
-  output: 'standalone',
   // Skip type checking during build
   typescript: {
     ignoreBuildErrors: true,
@@ -21,20 +19,18 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Configure routes that should not be statically generated
-  async headers() {
+  // Disable static generation for API routes
+  async rewrites() {
     return [
       {
         source: '/api/:path*',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'no-store, max-age=0',
-          },
-        ],
+        destination: '/api/:path*',
       },
     ];
   },
+  // Disable static optimization for all pages
+  reactStrictMode: true,
+  swcMinify: true,
 };
 
 module.exports = nextConfig;
