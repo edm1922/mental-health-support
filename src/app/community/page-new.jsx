@@ -37,29 +37,43 @@ function CommunityPage() {
       try {
         console.log('Checking authentication status...');
 
-        // Try to refresh the session first
+        // Use the dedicated community auth endpoint
         try {
-          const refreshResponse = await fetch('/api/auth/refresh-session', {
+          const authResponse = await fetch('/api/auth/community-auth', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
             }
           });
 
-          if (refreshResponse.ok) {
-            console.log('Session refreshed successfully');
+          if (authResponse.ok) {
+            const authData = await authResponse.json();
+            console.log('Auth check result:', authData);
+
+            if (authData.authenticated) {
+              console.log('User is authenticated via API:', authData.user.id);
+              setAuthStatus({
+                authenticated: true,
+                checking: false,
+                user: authData.user
+              });
+              return;
+            } else {
+              console.log('Not authenticated via API');
+            }
           } else {
-            console.log('Session refresh not needed or failed');
+            console.log('Auth check API failed, falling back to direct check');
           }
-        } catch (refreshError) {
-          console.error('Error refreshing session:', refreshError);
+        } catch (authApiError) {
+          console.error('Error using auth API:', authApiError);
+          console.log('Falling back to direct Supabase auth check');
         }
 
-        // Now get the session
+        // Fallback: direct Supabase auth check
         const { data: { session } } = await supabase.auth.getSession();
 
         if (session) {
-          console.log('User is authenticated:', session.user.id);
+          console.log('User is authenticated via direct check:', session.user.id);
           setAuthStatus({
             authenticated: true,
             checking: false,
@@ -298,6 +312,11 @@ function CommunityPage() {
       setError(null);
       setSuccessMessage(null);
 
+      // Check authentication first
+      const { data: { session } } = await supabase.auth.getSession();
+      const isAuthenticated = !!session;
+      console.log('Authentication check before fetching post:', isAuthenticated ? 'Authenticated' : 'Not authenticated');
+
       // First, automatically fix the schema if needed
       console.log('Checking and fixing forum table if needed...');
       await fetch('/api/admin/fix-forum-table', {
@@ -321,18 +340,23 @@ function CommunityPage() {
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to fetch post details');
-        }
+          // If it's an authentication error, clear it - we'll handle auth separately
+          if (errorData.error && errorData.error.includes('Authentication required')) {
+            console.log('Ignoring authentication error from API, will handle auth separately');
+          } else {
+            throw new Error(errorData.error || 'Failed to fetch post details');
+          }
+        } else {
+          const data = await response.json();
+          console.log('Post details fetched successfully via API:', data);
 
-        const data = await response.json();
-        console.log('Post details fetched successfully via API:', data);
-
-        if (data.post) {
-          setSelectedPost({
-            ...data.post,
-            comments: data.comments || []
-          });
-          return;
+          if (data.post) {
+            setSelectedPost({
+              ...data.post,
+              comments: data.comments || []
+            });
+            return;
+          }
         }
       } catch (apiError) {
         console.error('API error fetching post details:', apiError);
@@ -922,6 +946,13 @@ function CommunityPage() {
         <ModernAlert type="error" className="mb-4">
           <p className="font-bold">Error:</p>
           <p>{error}</p>
+          {error.includes('Authentication required') && (
+            <div className="mt-2">
+              <ModernButton onClick={handleSignIn} variant="secondary">
+                Sign In
+              </ModernButton>
+            </div>
+          )}
         </ModernAlert>
       )}
 

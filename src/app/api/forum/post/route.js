@@ -21,7 +21,10 @@ export async function POST(request) {
 
     // Get the session if available (not required for viewing posts)
     const { data: { session } } = await supabase.auth.getSession();
-    console.log('Session:', session ? 'User is authenticated' : 'No session');
+    console.log('Session in post API:', session ? 'User is authenticated' : 'No session');
+
+    // Note: We don't require authentication for viewing posts
+    // This is just to get the user info if available
 
     // Check if the discussion_posts table exists
     const { data: tableExists, error: tableCheckError } = await supabase.rpc('exec_sql', {
