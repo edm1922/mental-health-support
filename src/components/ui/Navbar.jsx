@@ -101,8 +101,8 @@ export default function Navbar({ transparent = false }) {
 
           <div className="flex items-center space-x-2 sm:space-x-4">
             <SearchBar
-              className="hidden sm:block"
-              placeholder="Search..."
+              className="block"
+              placeholder="Search the site..."
               onSearch={(term) => {
                 showInfo(`Searching for: ${term}`);
                 // Implement actual search functionality here
@@ -216,7 +216,7 @@ export default function Navbar({ transparent = false }) {
             <div className="px-3 py-2 mb-2">
               <SearchBar
                 className="block sm:hidden w-full"
-                placeholder="Search..."
+                placeholder="Search the site..."
                 onSearch={(term) => {
                   showInfo(`Searching for: ${term}`);
                   setMobileMenuOpen(false);

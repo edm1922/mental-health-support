@@ -41,14 +41,14 @@ const NotificationBar = () => {
   const getBackgroundColor = (type) => {
     switch (type) {
       case 'success':
-        return 'bg-green-50 text-green-800 border-green-200';
+        return 'bg-green-100/90 backdrop-blur-md text-green-800 border-green-300';
       case 'error':
-        return 'bg-red-50 text-red-800 border-red-200';
+        return 'bg-red-100/90 backdrop-blur-md text-red-800 border-red-300';
       case 'warning':
-        return 'bg-yellow-50 text-yellow-800 border-yellow-200';
+        return 'bg-yellow-100/90 backdrop-blur-md text-yellow-800 border-yellow-300';
       case 'info':
       default:
-        return 'bg-blue-50 text-blue-800 border-blue-200';
+        return 'bg-blue-100/90 backdrop-blur-md text-blue-800 border-blue-300';
     }
   };
 
@@ -77,7 +77,7 @@ const NotificationBar = () => {
             animate={{ opacity: 1, y: 0, x: 0 }}
             exit={{ opacity: 0, x: 100 }}
             transition={{ duration: 0.3 }}
-            className={`rounded-lg shadow-md border p-3 flex items-start pointer-events-auto ${getBackgroundColor(notification.type)}`}
+            className={`rounded-lg shadow-lg border p-4 flex items-start pointer-events-auto ${getBackgroundColor(notification.type)}`}
           >
             <div className={`flex-shrink-0 ${getIconColor(notification.type)}`}>
               {getIcon(notification.type)}
