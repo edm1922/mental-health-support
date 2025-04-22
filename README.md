@@ -1,6 +1,6 @@
 # Mental Health Support Platform
 
-> Updated for Vercel deployment
+> Updated for Vercel deployment - Trigger new build
 
 A comprehensive web application for mental health support, counseling, and community engagement. This platform connects users with counselors, provides mental health check-ins, and offers a supportive community forum.
 
