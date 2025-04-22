@@ -5,32 +5,46 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const NotificationBell = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      title: 'New message',
-      message: 'You have a new message from your counselor',
-      time: '5 minutes ago',
-      read: false,
-      type: 'message'
-    },
-    {
-      id: 2,
-      title: 'Session reminder',
-      message: 'Your counseling session is scheduled for tomorrow at 2:00 PM',
-      time: '1 hour ago',
-      read: true,
-      type: 'appointment'
+  // Initialize notifications from localStorage or use default sample notifications
+  const [notifications, setNotifications] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedNotifications = localStorage.getItem('notifications');
+      if (savedNotifications) {
+        return JSON.parse(savedNotifications);
+      }
     }
-  ]);
+    return [
+      {
+        id: 1,
+        title: 'New message',
+        message: 'You have a new message from your counselor',
+        time: '5 minutes ago',
+        read: false,
+        type: 'message'
+      },
+      {
+        id: 2,
+        title: 'Session reminder',
+        message: 'Your counseling session is scheduled for tomorrow at 2:00 PM',
+        time: '1 hour ago',
+        read: true,
+        type: 'appointment'
+      }
+    ];
+  });
   const [unreadCount, setUnreadCount] = useState(0);
   const bellRef = useRef(null);
   const { showSuccess } = useNotification();
 
-  // Calculate unread count
+  // Calculate unread count and save to localStorage when notifications change
   useEffect(() => {
     const count = notifications.filter(notification => !notification.read).length;
     setUnreadCount(count);
+
+    // Save to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('notifications', JSON.stringify(notifications));
+    }
   }, [notifications]);
 
   // Handle click outside to close dropdown
@@ -53,6 +67,8 @@ const NotificationBell = () => {
         notification.id === id ? { ...notification, read: true } : notification
       )
     );
+    // Close the dropdown after marking as read
+    setTimeout(() => setIsOpen(false), 300);
   };
 
   const markAllAsRead = () => {
@@ -60,6 +76,8 @@ const NotificationBell = () => {
       prevNotifications.map(notification => ({ ...notification, read: true }))
     );
     showSuccess('All notifications marked as read');
+    // Close the dropdown after marking all as read
+    setTimeout(() => setIsOpen(false), 300);
   };
 
   const deleteNotification = (id) => {
@@ -95,14 +113,14 @@ const NotificationBell = () => {
     <div className="relative" ref={bellRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-600 hover:text-primary-600 transition-colors rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+        className="relative p-2 text-white hover:text-white/90 transition-colors rounded-full hover:bg-white/10 focus:outline-none"
         aria-label="Notifications"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
         </svg>
         {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-500 rounded-full">
+          <span className="absolute top-0 right-0 inline-flex items-center justify-center w-5 h-5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-500 rounded-full">
             {unreadCount}
           </span>
         )}
@@ -123,7 +141,7 @@ const NotificationBell = () => {
                 {unreadCount > 0 && (
                   <button
                     onClick={markAllAsRead}
-                    className="text-sm text-primary-600 hover:text-primary-800"
+                    className="text-sm text-blue-500 hover:text-blue-700"
                   >
                     Mark all as read
                   </button>
@@ -151,7 +169,7 @@ const NotificationBell = () => {
                             {!notification.read && (
                               <button
                                 onClick={() => markAsRead(notification.id)}
-                                className="text-xs text-primary-600 hover:text-primary-800 mr-2"
+                                className="text-xs text-blue-500 hover:text-blue-700 mr-2"
                               >
                                 Mark as read
                               </button>
@@ -189,7 +207,7 @@ const NotificationBell = () => {
                   setIsOpen(false);
                   // Navigate to notifications page
                 }}
-                className="w-full px-4 py-2 text-sm text-center text-primary-600 hover:bg-gray-50 rounded-lg transition-colors"
+                className="w-full px-4 py-2 text-sm text-center text-blue-500 hover:bg-gray-50 rounded-lg transition-colors"
               >
                 View all notifications
               </button>
