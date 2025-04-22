@@ -328,9 +328,9 @@ function CommunityPage() {
 
       console.log('Fetching post details for ID:', postId);
 
-      // Try using the API endpoint first for better error handling
+      // Try using the public API endpoint first for better error handling
       try {
-        const response = await fetch(`/api/forum/post`, {
+        const response = await fetch(`/api/forum/public-post`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -340,26 +340,21 @@ function CommunityPage() {
 
         if (!response.ok) {
           const errorData = await response.json();
-          // If it's an authentication error, clear it - we'll handle auth separately
-          if (errorData.error && errorData.error.includes('Authentication required')) {
-            console.log('Ignoring authentication error from API, will handle auth separately');
-          } else {
-            throw new Error(errorData.error || 'Failed to fetch post details');
-          }
-        } else {
-          const data = await response.json();
-          console.log('Post details fetched successfully via API:', data);
+          throw new Error(errorData.error || 'Failed to fetch post details');
+        }
 
-          if (data.post) {
-            setSelectedPost({
-              ...data.post,
-              comments: data.comments || []
-            });
-            return;
-          }
+        const data = await response.json();
+        console.log('Post details fetched successfully via public API:', data);
+
+        if (data.post) {
+          setSelectedPost({
+            ...data.post,
+            comments: data.comments || []
+          });
+          return;
         }
       } catch (apiError) {
-        console.error('API error fetching post details:', apiError);
+        console.error('Public API error fetching post details:', apiError);
         console.log('Falling back to direct Supabase client...');
       }
 
@@ -900,9 +895,23 @@ function CommunityPage() {
   };
 
   const handleSignIn = () => {
+    // Store the current post ID if we're viewing a post
+    if (selectedPost) {
+      localStorage.setItem('lastViewedPostId', selectedPost.id);
+    }
     window.location.href = `/account/signin?callbackUrl=${encodeURIComponent("/community")}`;
-
   };
+
+  // Check for a stored post ID on component mount
+  useEffect(() => {
+    const lastViewedPostId = localStorage.getItem('lastViewedPostId');
+    if (lastViewedPostId) {
+      // Clear the stored ID
+      localStorage.removeItem('lastViewedPostId');
+      // Fetch the post details
+      fetchPostDetails(lastViewedPostId);
+    }
+  }, []);
 
   // Show loading state while checking authentication
   if (authStatus.checking) {
