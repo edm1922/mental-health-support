@@ -92,7 +92,7 @@ export default function SearchPage() {
                 title: profile.display_name || 'User',
                 excerpt: excerpt,
                 type: profile.role === 'counselor' ? 'Counselor' : 'User',
-                url: profile.role === 'counselor' ? `/counselor/profile/${profile.id}` : `/profile`,
+                url: profile.role === 'counselor' ? `/counselor/profile/${profile.id}` : `/user/${profile.id}`,
                 badge: profile.role === 'counselor' ? 'Counselor' : (profile.role === 'admin' ? 'Admin' : null)
               };
             })
