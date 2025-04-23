@@ -308,13 +308,73 @@ function CommunityPage() {
 
   const fetchPostDetails = async (postId) => {
     try {
+      // Clear any previous state
       setLoading(true);
       setError(null);
       setSuccessMessage(null);
 
+      // Add a delay to ensure loading state is visible
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       console.log('Fetching post details for ID:', postId);
 
-      // Direct database query for post
+      if (!postId) {
+        console.error('Invalid post ID:', postId);
+        setError('Invalid post ID');
+        setLoading(false);
+        return null;
+      }
+
+      // Force clear any previous selected post to ensure UI updates
+      setSelectedPost(null);
+
+      // First try using the API endpoint
+      try {
+        console.log('Attempting to fetch post details using API endpoint...');
+        const response = await fetch(`/api/forum/direct-view-post?id=${postId}`);
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Post details fetched from API:', data);
+
+          if (data.success && data.post) {
+            // Get the current user for permission checks
+            const { data: { session } } = await supabase.auth.getSession();
+            const currentUserId = session?.user?.id;
+
+            // Add author_name if not present
+            if (!data.post.author_name) {
+              data.post.author_name = 'Anonymous';
+            }
+
+            // Format comments with author names if needed
+            const formattedComments = (data.comments || []).map(comment => ({
+              ...comment,
+              author_name: comment.author_name || 'Anonymous'
+            }));
+
+            // Set the selected post with comments
+            const formattedPost = {
+              ...data.post,
+              comments: formattedComments
+            };
+
+            console.log('Setting selected post:', formattedPost);
+
+            // Set the selected post and ensure the UI updates
+            setSelectedPost(formattedPost);
+            console.log('Selected post state set to:', formattedPost.id);
+
+            setLoading(false);
+            return formattedPost;
+          }
+        }
+      } catch (apiError) {
+        console.error('Error using API endpoint:', apiError);
+        console.log('Falling back to direct database query...');
+      }
+
+      // Direct database query for post as fallback
       const { data: post, error: postError } = await supabase
         .from('discussion_posts')
         .select('*')
@@ -327,6 +387,20 @@ function CommunityPage() {
       }
 
       console.log('Post fetched successfully:', post);
+
+      // Try to get author information
+      let authorName = 'Anonymous';
+      if (post.user_id) {
+        const { data: author } = await supabase
+          .from('user_profiles')
+          .select('display_name')
+          .eq('id', post.user_id)
+          .single();
+
+        if (author?.display_name) {
+          authorName = author.display_name;
+        }
+      }
 
       // Direct database query for comments
       const { data: comments, error: commentsError } = await supabase
@@ -342,11 +416,51 @@ function CommunityPage() {
 
       console.log('Comments fetched:', comments ? comments.length : 0);
 
-      // Set the selected post with comments
-      setSelectedPost({
+      // Format comments with author names
+      const formattedComments = [];
+      if (comments && comments.length > 0) {
+        // Get all user IDs from comments
+        const userIds = comments.map(c => c.user_id).filter(Boolean);
+
+        // Get display names for all users
+        const { data: commentAuthors } = await supabase
+          .from('user_profiles')
+          .select('id, display_name')
+          .in('id', userIds);
+
+        // Create a map of user_id to display_name
+        const authorMap = {};
+        if (commentAuthors) {
+          commentAuthors.forEach(author => {
+            authorMap[author.id] = author.display_name;
+          });
+        }
+
+        // Format comments with author names
+        formattedComments.push(...comments.map(comment => ({
+          ...comment,
+          author_name: comment.user_id && authorMap[comment.user_id] ?
+            authorMap[comment.user_id] : 'Anonymous'
+        })));
+      }
+
+      // Create the formatted post object
+      const formattedPost = {
         ...post,
-        comments: comments || []
-      });
+        author_name: authorName,
+        comments: formattedComments
+      };
+
+      console.log('Setting selected post from direct query:', formattedPost);
+
+      // Set the selected post with comments
+      setSelectedPost(formattedPost);
+      console.log('Selected post state set to:', formattedPost.id);
+
+      // Add a small delay to ensure state updates before returning
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      return formattedPost;
     } catch (error) {
       console.error('Error fetching post details:', error);
       setError('Could not load post details. Please try again later.');
@@ -584,10 +698,16 @@ function CommunityPage() {
   };
 
   const handleEditPost = (post) => {
-    setEditingPost(post);
-    setEditFormData({
-      title: post.title,
-      content: post.content
+    console.log('handleEditPost called with post:', post);
+    // First fetch the post details to ensure we have the latest data
+    fetchPostDetails(post.id).then(() => {
+      // Now set the editing state with the fetched post
+      setEditingPost(post);
+      setEditFormData({
+        title: post.title,
+        content: post.content
+      });
+      console.log('Edit form data set:', { title: post.title, content: post.content });
     });
   };
 
@@ -609,7 +729,71 @@ function CommunityPage() {
         return;
       }
 
-      // Direct database update
+      if (!editingPost || !editingPost.id) {
+        console.error('No post is being edited or missing post ID');
+        setError("Cannot update post: missing post information");
+        return;
+      }
+
+      console.log('Updating post with ID:', editingPost.id);
+      console.log('Update data:', editFormData);
+
+      // First try using the API endpoint
+      try {
+        console.log('Attempting to update post using API endpoint...');
+        // Get the current user ID from the session
+        const { data: { session } } = await supabase.auth.getSession();
+        const currentUserId = session?.user?.id;
+
+        if (!currentUserId) {
+          console.error('No user ID available for edit');
+          throw new Error('Authentication required to edit posts');
+        }
+
+        console.log('Using user ID for edit:', currentUserId);
+
+        const response = await fetch('/api/forum/public-edit-post', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            id: editingPost.id,
+            title: editFormData.title,
+            content: editFormData.content,
+            userId: currentUserId
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          console.log('Post updated successfully via API:', data);
+          // Show success message
+          setSuccessMessage('Post updated successfully');
+
+          // Reset form and refresh posts
+          setEditingPost(null);
+          setEditFormData({ title: "", content: "" });
+
+          // If we were editing a selected post, refresh its details
+          if (selectedPost && selectedPost.id === editingPost.id) {
+            await fetchPostDetails(editingPost.id);
+          } else {
+            // Otherwise just refresh the posts list
+            await fetchPosts();
+          }
+          return;
+        } else {
+          console.error('API update failed:', data.error || 'Unknown error');
+          console.log('Falling back to direct database update...');
+        }
+      } catch (apiError) {
+        console.error('Error using API endpoint for update:', apiError);
+        console.log('Falling back to direct database update...');
+      }
+
+      // Direct database update as fallback
       console.log('Updating post with direct database access...');
       const { data, error } = await supabase
         .from('discussion_posts')
@@ -626,7 +810,7 @@ function CommunityPage() {
         throw new Error('Failed to update post: ' + error.message);
       }
 
-      console.log('Post updated successfully:', data);
+      console.log('Post updated successfully with direct database access:', data);
       // Show success message
       setSuccessMessage('Post updated successfully');
 
@@ -779,6 +963,70 @@ function CommunityPage() {
     }
   };
 
+  // Direct method to view post details with simplified approach
+  const viewPostDirectly = async (postId) => {
+    try {
+      setLoading(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      console.log('Directly viewing post with ID:', postId);
+
+      // Get the post directly from the database
+      const { data: post, error: postError } = await supabase
+        .from('discussion_posts')
+        .select('*')
+        .eq('id', postId)
+        .single();
+
+      if (postError) {
+        console.error('Error fetching post:', postError);
+        setError('Could not load post. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('Post fetched successfully:', post);
+
+      // Create a simplified post object
+      const viewPost = {
+        ...post,
+        author_name: 'Anonymous',
+        comments: []
+      };
+
+      // Set the selected post
+      console.log('Setting selected post directly:', viewPost);
+      setSelectedPost(viewPost);
+
+      // Fetch comments in the background
+      supabase
+        .from('discussion_comments')
+        .select('*')
+        .eq('post_id', postId)
+        .order('created_at', { ascending: true })
+        .then(({ data: comments }) => {
+          if (comments && comments.length > 0) {
+            console.log('Comments fetched:', comments.length);
+            // Update the post with comments
+            setSelectedPost(prev => ({
+              ...prev,
+              comments: comments.map(c => ({ ...c, author_name: 'Anonymous' }))
+            }));
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching comments:', err);
+        });
+
+      setLoading(false);
+    } catch (error) {
+      console.error('Error in viewPostDirectly:', error);
+      setError('An error occurred while loading the post.');
+      setLoading(false);
+    }
+  };
+
   const handleSignIn = () => {
     // Store the current post ID if we're viewing a post
     if (selectedPost) {
@@ -793,8 +1041,9 @@ function CommunityPage() {
     if (lastViewedPostId) {
       // Clear the stored ID
       localStorage.removeItem('lastViewedPostId');
-      // Fetch the post details
-      fetchPostDetails(lastViewedPostId);
+      // Use our direct method to view the post
+      console.log('Found stored post ID, viewing directly:', lastViewedPostId);
+      viewPostDirectly(lastViewedPostId);
     }
   }, []);
 
@@ -901,9 +1150,10 @@ function CommunityPage() {
       )}
 
       {loading ? (
-        <div className="flex justify-center py-8">
+        <GlassCard className="flex flex-col items-center justify-center py-12">
           <ModernSpinner size="large" />
-        </div>
+          <p className="mt-4 text-gray-600">Loading post details...</p>
+        </GlassCard>
       ) : selectedPost ? (
         <GlassCard>
           <ModernButton
@@ -930,7 +1180,11 @@ function CommunityPage() {
             {authStatus.authenticated && authStatus.user && selectedPost.user_id === authStatus.user.id && (
               <div className="flex space-x-2">
                 <ModernButton
-                  onClick={() => handleEditPost(selectedPost)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log('Edit button clicked for selected post:', selectedPost.id);
+                    handleEditPost(selectedPost);
+                  }}
                   variant="secondary"
                   className="text-sm px-3 py-1"
                 >
@@ -950,7 +1204,7 @@ function CommunityPage() {
             )}
           </div>
           <div className="mb-4 text-sm text-gray-600">
-            Posted by {selectedPost.author_name} on{" "}
+            Posted by {selectedPost.author_name || 'Anonymous'} on{" "}
             {new Date(selectedPost.created_at).toLocaleDateString()}
           </div>
 
@@ -1031,7 +1285,7 @@ function CommunityPage() {
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div className="text-sm text-gray-600">
-                      {comment.author_name} -{" "}
+                      {comment.author_name || 'Anonymous'} -{" "}
                       {new Date(comment.created_at).toLocaleDateString()}
                     </div>
                     {authStatus.authenticated && authStatus.user && comment.user_id === authStatus.user.id && (
@@ -1092,14 +1346,22 @@ function CommunityPage() {
             posts.map((post) => (
               <GlassCard
                 key={post.id}
-                className={`cursor-pointer transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl ${!post.is_approved ? 'border-l-4 border-l-amber-400' : ''}`}
-                onClick={() => fetchPostDetails(post.id)}
+                className={`transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl hover:bg-blue-50/30 ${!post.is_approved ? 'border-l-4 border-l-amber-400' : ''}`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <ModernHeading level={2} className="mb-0">
-                        {post.title}
+                        <span
+                          className="text-blue-600 hover:underline cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            console.log('Post title clicked, viewing post directly:', post.id);
+                            viewPostDirectly(post.id);
+                          }}
+                        >
+                          {post.title}
+                        </span>
                       </ModernHeading>
                       {!post.is_approved && (
                         <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full font-medium">
@@ -1108,7 +1370,7 @@ function CommunityPage() {
                       )}
                     </div>
                     <div className="mb-2 text-sm text-gray-600">
-                      Posted by {post.author_name} on{" "}
+                      Posted by {post.author_name || 'Anonymous'} on{" "}
                       {new Date(post.created_at).toLocaleDateString()}
                     </div>
                     <p className="text-gray-700">
@@ -1116,12 +1378,26 @@ function CommunityPage() {
                         ? `${post.content.substring(0, 200)}...`
                         : post.content}
                     </p>
+                    <div className="mt-4">
+                      <ModernButton
+                        onClick={() => {
+                          console.log('View Details button clicked for post:', post.id);
+                          // Use a direct method to view post details
+                          viewPostDirectly(post.id);
+                        }}
+                        variant="secondary"
+                        className="text-sm px-3 py-1"
+                      >
+                        View Details
+                      </ModernButton>
+                    </div>
                   </div>
                   {authStatus.authenticated && authStatus.user && post.user_id === authStatus.user.id && (
                     <div className="ml-4 flex space-x-2">
                       <ModernButton
                         onClick={(e) => {
                           e.stopPropagation();
+                          console.log('Edit button clicked for post:', post.id);
                           handleEditPost(post);
                         }}
                         variant="secondary"
