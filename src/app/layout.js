@@ -1,6 +1,7 @@
 import { Poppins, Manrope } from 'next/font/google'
 import './globals.css'
 import '../styles/animations.css'
+import '../styles/reset.css'
 import dynamic from 'next/dynamic'
 
 // Import PageTransition component
