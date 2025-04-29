@@ -8,6 +8,13 @@ import RoleBasedActionCards from '../../components/RoleBasedActionCards';
 import { useUser } from '../../utils/useUser';
 import { useNotification } from '../../context/NotificationContext';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import dynamic from 'next/dynamic';
+
+// Dynamically import the EmotionAIAssistant component with no SSR
+const EmotionAIAssistant = dynamic(
+  () => import('../../components/EmotionAIAssistant'),
+  { ssr: false }
+);
 
 export default function HomePage() {
   const router = useRouter();
@@ -54,6 +61,11 @@ export default function HomePage() {
 
       {/* Footer */}
       <Footer />
+
+      {/* Emotion AI Assistant - shown for all users */}
+      {user && (
+        <EmotionAIAssistant />
+      )}
     </div>
   );
 }
