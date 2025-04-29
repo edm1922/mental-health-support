@@ -19,7 +19,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Disable static generation for API routes
+  // Ensure API routes are handled correctly
   async rewrites() {
     return [
       {
@@ -31,6 +31,8 @@ const nextConfig = {
   // Disable static optimization for all pages
   reactStrictMode: true,
   swcMinify: true,
+  // Force all pages to be server-side rendered
+  output: 'standalone',
 };
 
 module.exports = nextConfig;
