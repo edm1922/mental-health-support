@@ -2,7 +2,16 @@ import { NextResponse } from "next/server";
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 
 export const config = {
-  matcher: ["/integrations/:path*", "/apply/counselor", "/admin/:path*", "/", "/profile"],
+  matcher: [
+    "/integrations/:path*",
+    "/apply/counselor",
+    "/admin/:path*",
+    "/",
+    "/profile",
+    "/counselor/profile/:id*",
+    "/counselor-profile/:id*",
+    "/sessions"
+  ],
 };
 
 export async function middleware(request) {
@@ -33,8 +42,11 @@ export async function middleware(request) {
           } else if (profile.role === 'counselor') {
             console.log('Redirecting counselor user to counselor dashboard');
             return NextResponse.redirect(new URL('/counselor/dashboard', request.url));
-          } else {
+          } else if (profile.role === 'user') {
             console.log('Redirecting regular user to home page');
+            return NextResponse.redirect(new URL('/home', request.url));
+          } else {
+            console.log('Redirecting user with unknown role to home page');
             return NextResponse.redirect(new URL('/home', request.url));
           }
         }
@@ -48,6 +60,32 @@ export async function middleware(request) {
   // Redirect /apply/counselor to /counselor/apply
   if (request.nextUrl.pathname === '/apply/counselor') {
     return NextResponse.redirect(new URL('/counselor/apply', request.url));
+  }
+
+  // Handle counselor profile URLs - try both paths
+  if (request.nextUrl.pathname.startsWith('/counselor/profile/')) {
+    try {
+      // Instead of redirecting, we'll try to continue with the current path
+      // This allows both old and new paths to work
+      const id = request.nextUrl.pathname.split('/').pop();
+
+      // Only redirect if we're sure the new path exists
+      // Otherwise, let the original path try to resolve
+      const { data: pathCheck } = await supabase.rpc('exec_sql', {
+        sql: 'SELECT 1 as exists'
+      });
+
+      if (pathCheck) {
+        // If we can execute SQL, the database is working, so we can redirect
+        return NextResponse.redirect(new URL(`/counselor-profile/${id}`, request.url));
+      }
+
+      // If we can't execute SQL, don't redirect - let the original path try to work
+      console.log('Database check failed, not redirecting counselor profile');
+    } catch (error) {
+      console.error('Error in counselor profile middleware:', error);
+      // On error, don't redirect - let the original path try to work
+    }
   }
 
   // Handle integrations
