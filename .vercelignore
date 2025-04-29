@@ -1,0 +1,21 @@
+# Ignore node_modules
+node_modules
+
+# Ignore .next build output
+.next
+
+# Ignore git files
+.git
+.gitignore
+
+# Ignore local env files
+.env*.local
+
+# Ignore build artifacts
+build
+out
+
+# Ignore misc files
+.DS_Store
+*.pem
+*.log
