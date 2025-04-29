@@ -103,15 +103,6 @@ export default function Navbar({ transparent = false }) {
               <Link href="/home" className={`px-3 py-2 rounded-md text-sm font-medium ${textColor} hover:text-primary-600 transition-colors`}>
                 Home
               </Link>
-              <Link href="/mental-health-checkin" className={`px-3 py-2 rounded-md text-sm font-medium ${textColor} hover:text-primary-600 transition-colors`}>
-                Daily Check-in
-              </Link>
-              <Link href="/book-session" className={`px-3 py-2 rounded-md text-sm font-medium ${textColor} hover:text-primary-600 transition-colors`}>
-                Book a Session
-              </Link>
-              <Link href="/find-counselor" className={`px-3 py-2 rounded-md text-sm font-medium ${textColor} hover:text-primary-600 transition-colors`}>
-                Find a Counselor
-              </Link>
               <Link href="/community" className={`px-3 py-2 rounded-md text-sm font-medium ${textColor} hover:text-primary-600 transition-colors`}>
                 Community
               </Link>
@@ -260,27 +251,6 @@ export default function Navbar({ transparent = false }) {
               onClick={() => setMobileMenuOpen(false)}
             >
               Home
-            </Link>
-            <Link
-              href="/mental-health-checkin"
-              className="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b border-gray-100"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Daily Check-in
-            </Link>
-            <Link
-              href="/book-session"
-              className="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b border-gray-100"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Book a Session
-            </Link>
-            <Link
-              href="/find-counselor"
-              className="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b border-gray-100"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Find a Counselor
             </Link>
             <Link
               href="/community"
