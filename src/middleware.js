@@ -62,29 +62,18 @@ export async function middleware(request) {
     return NextResponse.redirect(new URL('/counselor/apply', request.url));
   }
 
-  // Handle counselor profile URLs - try both paths
+  // Handle counselor profile URLs - support both paths
   if (request.nextUrl.pathname.startsWith('/counselor/profile/')) {
     try {
-      // Instead of redirecting, we'll try to continue with the current path
-      // This allows both old and new paths to work
+      // Get the counselor ID from the URL
       const id = request.nextUrl.pathname.split('/').pop();
 
-      // Only redirect if we're sure the new path exists
-      // Otherwise, let the original path try to resolve
-      const { data: pathCheck } = await supabase.rpc('exec_sql', {
-        sql: 'SELECT 1 as exists'
-      });
-
-      if (pathCheck) {
-        // If we can execute SQL, the database is working, so we can redirect
-        return NextResponse.redirect(new URL(`/counselor-profile/${id}`, request.url));
-      }
-
-      // If we can't execute SQL, don't redirect - let the original path try to work
-      console.log('Database check failed, not redirecting counselor profile');
+      // Redirect to the new path format
+      console.log(`Redirecting from /counselor/profile/${id} to /counselor-profile/${id}`);
+      return NextResponse.redirect(new URL(`/counselor-profile/${id}`, request.url));
     } catch (error) {
       console.error('Error in counselor profile middleware:', error);
-      // On error, don't redirect - let the original path try to work
+      // On error, continue with the original request
     }
   }
 
