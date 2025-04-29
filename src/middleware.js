@@ -77,6 +77,12 @@ export async function middleware(request) {
     }
   }
 
+  // Redirect from profile page to home page
+  if (request.nextUrl.pathname === '/profile') {
+    console.log('Redirecting from profile page to home page');
+    return NextResponse.redirect(new URL('/home', request.url));
+  }
+
   // Handle integrations
   if (request.nextUrl.pathname.startsWith('/integrations')) {
     const requestHeaders = new Headers(request.headers);

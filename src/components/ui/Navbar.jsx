@@ -35,17 +35,37 @@ export default function Navbar({ transparent = false }) {
     if (user) {
       fetchUserRole();
     }
-  }, [user]);
+  }, [user, userProfile]);
 
   const fetchUserRole = async () => {
     try {
       const response = await fetch('/api/user/role');
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch user role: ${response.status} ${response.statusText}`);
+      }
+
       const data = await response.json();
+
       if (data.role) {
         setUserRole(data.role);
+      } else if (userProfile?.role) {
+        // Fallback to userProfile if available
+        setUserRole(userProfile.role);
+      } else {
+        // Default to 'user' if no role is found
+        setUserRole('user');
       }
     } catch (error) {
       console.error('Error fetching user role:', error);
+
+      // Fallback to userProfile if available
+      if (userProfile?.role) {
+        setUserRole(userProfile.role);
+      } else {
+        // Default to 'user' if no role is found
+        setUserRole('user');
+      }
     }
   };
 
@@ -89,13 +109,21 @@ export default function Navbar({ transparent = false }) {
               <Link href="/book-session" className={`px-3 py-2 rounded-md text-sm font-medium ${textColor} hover:text-primary-600 transition-colors`}>
                 Book a Session
               </Link>
+              <Link href="/find-counselor" className={`px-3 py-2 rounded-md text-sm font-medium ${textColor} hover:text-primary-600 transition-colors`}>
+                Find a Counselor
+              </Link>
               <Link href="/community" className={`px-3 py-2 rounded-md text-sm font-medium ${textColor} hover:text-primary-600 transition-colors`}>
                 Community
               </Link>
               {user && (
-                <Link href="/messages" className={`px-3 py-2 rounded-md text-sm font-medium ${textColor} hover:text-primary-600 transition-colors`}>
-                  Messages
-                </Link>
+                <>
+                  <Link href="/sessions" className={`px-3 py-2 rounded-md text-sm font-medium ${textColor} hover:text-primary-600 transition-colors`}>
+                    Sessions
+                  </Link>
+                  <Link href="/messages" className={`px-3 py-2 rounded-md text-sm font-medium ${textColor} hover:text-primary-600 transition-colors`}>
+                    Messages
+                  </Link>
+                </>
               )}
             </div>
           </div>
@@ -140,13 +168,13 @@ export default function Navbar({ transparent = false }) {
                     aria-labelledby="user-menu-button"
                     tabIndex="-1"
                   >
-                    <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">
-                      Your Profile
+                    <Link href="/home" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">
+                      Home
                     </Link>
                     <Link href="/messages" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">
                       Messages
                     </Link>
-                    <Link href="/counseling/sessions" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">
+                    <Link href="/sessions" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">
                       Your Sessions
                     </Link>
 
@@ -248,6 +276,13 @@ export default function Navbar({ transparent = false }) {
               Book a Session
             </Link>
             <Link
+              href="/find-counselor"
+              className="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b border-gray-100"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Find a Counselor
+            </Link>
+            <Link
               href="/community"
               className="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b border-gray-100"
               onClick={() => setMobileMenuOpen(false)}
@@ -256,24 +291,25 @@ export default function Navbar({ transparent = false }) {
             </Link>
 
             {user && (
-              <Link
-                href="/messages"
-                className="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b border-gray-100"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Messages
-              </Link>
+              <>
+                <Link
+                  href="/sessions"
+                  className="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b border-gray-100"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Sessions
+                </Link>
+                <Link
+                  href="/messages"
+                  className="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b border-gray-100"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Messages
+                </Link>
+              </>
             )}
 
-            {user && (
-              <Link
-                href="/profile"
-                className="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b border-gray-100"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Your Profile
-              </Link>
-            )}
+            {/* Profile link removed to prevent redirection to profile page */}
 
             {userRole === 'counselor' && (
               <Link
