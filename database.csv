@@ -1,0 +1,56 @@
+table_name,column_name,data_type
+auth_accounts,id,bigint
+auth_accounts,userId,bigint
+auth_accounts,type,text
+auth_accounts,provider,text
+auth_accounts,providerAccountId,bigint
+auth_accounts,refresh_token,text
+auth_accounts,access_token,text
+auth_accounts,expires_at,text
+auth_accounts,id_token,text
+auth_accounts,scope,text
+auth_accounts,session_state,text
+auth_accounts,token_type,text
+auth_accounts,password,text
+auth_sessions,column_name,text
+auth_sessions,data_type,text
+auth_users,id,bigint
+auth_users,name,text
+auth_users,email,text
+auth_users,emailVerified,text
+auth_users,image,text
+auth_verification_token,column_name,text
+auth_verification_token,data_type,text
+counseling_sessions,column_name,text
+counseling_sessions,data_type,text
+counselor_applications,column_name,text
+counselor_applications,data_type,text
+discussion_comments,column_name,text
+discussion_comments,data_type,text
+discussion_posts,column_name,text
+discussion_posts,data_type,text
+educational_contents,column_name,text
+educational_contents,data_type,text
+inspirational_quotes,id,bigint
+inspirational_quotes,quote,text
+inspirational_quotes,author,text
+inspirational_quotes,created_at,timestamp with time zone
+mental_health_checkins,column_name,text
+mental_health_checkins,data_type,text
+user_profiles,id,uuid
+user_profiles,display_name,text
+user_profiles,bio,text
+user_profiles,image_url,text
+user_profiles,role,text
+user_profiles,created_at,timestamp with time zone
+user_profiles,updated_at,timestamp with time zone
+user_profiles,last_active,timestamp with time zone
+user_profiles,mental_health_interests,ARRAY
+user_profiles,support_preferences,ARRAY
+user_profiles,comfort_level_sharing,text
+user_profiles,preferred_contact_method,text
+user_profiles,emergency_contact,text
+user_profiles,goals,text
+user_profiles,preferred_resources,ARRAY
+user_profiles,triggers,ARRAY
+user_profiles,coping_strategies,ARRAY

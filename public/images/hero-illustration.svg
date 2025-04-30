@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="600" height="400" viewBox="0 0 600 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    @keyframes heartPulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.15); opacity: 0.9; }
+    }
+    .heart-pulse {
+      animation: heartPulse 2s ease-in-out infinite;
+      transform-origin: center;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    .float {
+      animation: float 3s ease-in-out infinite;
+    }
+  </style>
+  <!-- Background elements -->
+  <circle cx="300" cy="200" r="150" fill="#EEF2FF" opacity="0.5"/>
+  <circle cx="300" cy="200" r="100" fill="#E0E7FF" opacity="0.7"/>
+
+  <!-- Brain outline -->
+  <path d="M300 100C270 100 245 110 225 130C205 150 195 175 195 205C195 235 205 260 225 280C245 300 270 310 300 310C330 310 355 300 375 280C395 260 405 235 405 205C405 175 395 150 375 130C355 110 330 100 300 100Z" stroke="#6366F1" stroke-width="4" fill="none"/>
+
+  <!-- Brain connections -->
+  <path d="M250 150C260 160 270 165 280 165C290 165 300 160 310 150" stroke="#8B5CF6" stroke-width="3" fill="none"/>
+  <path d="M250 250C260 240 270 235 280 235C290 235 300 240 310 250" stroke="#8B5CF6" stroke-width="3" fill="none"/>
+  <path d="M230 200H370" stroke="#8B5CF6" stroke-width="3" fill="none"/>
+
+  <!-- Brain nodes -->
+  <circle cx="230" cy="200" r="8" fill="#C4B5FD"/>
+  <circle cx="300" cy="200" r="8" fill="#C4B5FD"/>
+  <circle cx="370" cy="200" r="8" fill="#C4B5FD"/>
+  <circle cx="250" cy="150" r="8" fill="#C4B5FD"/>
+  <circle cx="310" cy="150" r="8" fill="#C4B5FD"/>
+  <circle cx="250" cy="250" r="8" fill="#C4B5FD"/>
+  <circle cx="310" cy="250" r="8" fill="#C4B5FD"/>
+
+  <!-- Heart symbol with pulse animation -->
+  <path class="heart-pulse" d="M300 230C290 220 275 220 265 230C255 240 255 255 265 265L300 300L335 265C345 255 345 240 335 230C325 220 310 220 300 230Z" fill="#F9A8D4" stroke="#EC4899" stroke-width="2"/>
+
+  <!-- Decorative elements -->
+  <circle cx="200" cy="120" r="15" fill="#93C5FD" opacity="0.7"/>
+  <circle cx="400" cy="120" r="15" fill="#93C5FD" opacity="0.7"/>
+  <circle cx="200" cy="280" r="15" fill="#93C5FD" opacity="0.7"/>
+  <circle cx="400" cy="280" r="15" fill="#93C5FD" opacity="0.7"/>
+
+  <!-- Pulse rings -->
+  <circle cx="300" cy="200" r="170" stroke="#6366F1" stroke-width="2" stroke-dasharray="10 5" opacity="0.3"/>
+  <circle cx="300" cy="200" r="190" stroke="#8B5CF6" stroke-width="2" stroke-dasharray="10 5" opacity="0.2"/>
+</svg>

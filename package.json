@@ -1,0 +1,39 @@
+{
+  "name": "mental-health-support",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "build:deploy": "cross-env NODE_ENV=production next build",
+    "start": "next start",
+    "lint": "next lint",
+    "health-check": "node scripts/health-check.js",
+    "deploy": "vercel --prod",
+    "deploy:preview": "vercel",
+    "cleanup": "node scripts/cleanup.js",
+    "test:deepseek": "node scripts/test-deepseek.js",
+    "check": "node scripts/check-app.js"
+  },
+  "dependencies": {
+    "@azure-rest/ai-inference": "^1.0.0-beta.1",
+    "@azure/core-auth": "^1.9.0",
+    "@daily-co/daily-js": "^0.78.0",
+    "@supabase/auth-helpers-nextjs": "^0.10.0",
+    "@supabase/supabase-js": "^2.49.4",
+    "dotenv": "^16.5.0",
+    "framer-motion": "^12.7.4",
+    "next": "14.0.4",
+    "node-fetch": "^2.7.0",
+    "react": "^18",
+    "react-dom": "^18",
+    "react-hot-toast": "^2.5.2",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.0.1",
+    "cross-env": "^7.0.3",
+    "postcss": "^8",
+    "tailwindcss": "^3.3.0"
+  }
+}

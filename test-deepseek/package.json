@@ -1,0 +1,14 @@
+{
+  "name": "deepseek-test",
+  "version": "1.0.0",
+  "description": "Test for DeepSeek-V3-0324 model",
+  "type": "module",
+  "scripts": {
+    "test": "node test-deepseek.js"
+  },
+  "dependencies": {
+    "@azure-rest/ai-inference": "^1.0.0-beta.1",
+    "@azure/core-auth": "^1.5.0",
+    "dotenv": "^16.3.1"
+  }
+}
