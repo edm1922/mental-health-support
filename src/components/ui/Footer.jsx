@@ -3,7 +3,7 @@ import Link from 'next/link';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
-  
+
   return (
     <footer className="bg-gray-900 text-gray-300">
       <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
@@ -34,7 +34,7 @@ export default function Footer() {
               </a>
             </div>
           </div>
-          
+
           <div>
             <h3 className="text-sm font-semibold text-white tracking-wider uppercase mb-4">Resources</h3>
             <ul className="space-y-3">
@@ -60,7 +60,7 @@ export default function Footer() {
               </li>
             </ul>
           </div>
-          
+
           <div>
             <h3 className="text-sm font-semibold text-white tracking-wider uppercase mb-4">Support</h3>
             <ul className="space-y-3">
@@ -87,24 +87,11 @@ export default function Footer() {
             </ul>
           </div>
         </div>
-        
-        <div className="mt-12 pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center">
+
+        <div className="mt-12 pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-center items-center">
           <p className="text-base text-gray-400">
             &copy; {currentYear} Mental Health Support. All rights reserved.
           </p>
-          <div className="mt-4 md:mt-0">
-            <div className="flex space-x-6">
-              <Link href="/supabase-test" className="text-gray-400 hover:text-white transition-colors text-sm">
-                Database Connection Test
-              </Link>
-              <Link href="/admin" className="text-gray-400 hover:text-white transition-colors text-sm">
-                Admin
-              </Link>
-              <Link href="/counselor" className="text-gray-400 hover:text-white transition-colors text-sm">
-                Counselor
-              </Link>
-            </div>
-          </div>
         </div>
       </div>
     </footer>

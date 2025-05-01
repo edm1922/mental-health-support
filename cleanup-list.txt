@@ -1,0 +1,58 @@
+# Debug/Test API Routes
+src/app/api/debug/route.js
+src/app/api/debug/auth-status/route.js
+src/app/api/debug/auth-test/route.js
+src/app/api/debug/rls-policies/route.js
+src/app/api/debug/session/route.js
+src/app/api/debug/user/route.js
+src/app/api/auth-test/route.js
+src/app/api/supabase-test/route.js
+src/app/api/test/create-profile/route.js
+src/app/api/test/create-user/route.js
+src/app/api/test/route.js
+src/app/api/messages/create-test-users/route.js
+src/app/api/messages/debug/route.js
+src/app/api/messages/test-insert/route.js
+src/app/api/forum/create-test-post/route.js
+src/app/api/forum/test-post/route.js
+
+# Debug/Test Pages
+src/app/debug-auth/page.jsx
+src/app/auth-fix/page.jsx
+src/app/auth-test/page.jsx
+src/app/auth-direct/page.jsx
+src/app/api-test/page.jsx
+src/app/bypass/page.jsx
+src/app/bypass-middleware/page.jsx
+src/app/direct-counselor/page.jsx
+src/app/counselor/dashboard/debug.jsx
+src/app/redirect/page.jsx
+src/app/test-signin/page.jsx
+
+# Duplicate Authentication Pages
+src/app/account/signin-new/page.jsx
+src/app/account/signin-fixed.jsx
+src/app/signin/page.jsx
+
+# Redundant Authentication API Routes
+src/app/api/auth/direct-signin/route.js
+src/app/api/auth/fix-counselor/route.js
+src/app/api/auth/debug-auth/route.js
+src/app/api/auth/bigint-check/route.js
+
+# Duplicate Components
+src/components/AuthRedirect.jsx
+
+# Duplicate Counselor Dashboard
+src/app/counselor-dashboard/page.jsx
+
+# Temporary Files
+terminal-test.js
+force-rebuild-vercel.js
+vercel-rebuild-trigger.js
+vercel-rebuild-trigger.txt
+delete-sessions.sql
+
+# Documentation Files
+AUTHENTICATION_FIX_FINAL.md
+AUTHENTICATION_FIX_UUID.md
