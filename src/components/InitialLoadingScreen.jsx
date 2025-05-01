@@ -45,6 +45,7 @@ export default function InitialLoadingScreen() {
       className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-gradient-to-b from-purple-500 to-purple-700 transition-opacity duration-1000 ${
         fadeOut ? "opacity-0" : "opacity-100"
       }`}
+      data-skip-auto-scroll="true"
     >
       <div className="flex flex-col items-center justify-center space-y-6 px-4 text-center">
         <div className="relative h-24 w-24 animate-pulse">

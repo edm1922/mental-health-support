@@ -118,19 +118,22 @@ export default function CounselorLayout({ children }) {
           <div className="flex justify-between h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
-                <Link href="/counselor" className="font-bold text-xl">
+                <Link href="/counselor/dashboard/direct" className="font-bold text-xl">
                   Counselor Portal
                 </Link>
               </div>
               <div className="hidden md:ml-6 md:flex md:items-center md:space-x-4">
-                <Link href="/counselor" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-green-700">
+                <Link href="/counselor/dashboard/direct" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-green-700">
                   Dashboard
                 </Link>
                 <Link href="/counselor/sessions" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-green-700">
-                  My Sessions
+                  Sessions
                 </Link>
-                <Link href="/counselor/patients" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-green-700">
-                  Patient Check-ins
+                <Link href="/counselor/check-ins" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-green-700">
+                  Check-ins
+                </Link>
+                <Link href="/community" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-green-700">
+                  Community
                 </Link>
                 <Link href="/counselor/profile" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-green-700">
                   My Profile

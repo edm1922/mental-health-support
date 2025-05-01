@@ -25,39 +25,25 @@ export const useAuth = () => {
 
   const signIn = async (email, password) => {
     try {
-      console.log('Attempting to sign in with email:', email);
-
-      // Clear any existing session first to avoid conflicts
-      await supabase.auth.signOut();
-      console.log('Cleared existing session');
-
-      // Use Supabase's signInWithPassword method directly
+      // Use Supabase's signInWithPassword method
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        console.error('Sign-in error:', error);
         throw new Error(error.message || 'Failed to sign in');
       }
 
       if (!data?.user) {
-        console.error('Sign-in returned no user');
         throw new Error('Authentication failed. Please try again.');
       }
 
-      console.log('Sign-in successful, user:', data.user.id);
-      console.log('Session:', data.session ? 'Valid session created' : 'No session created');
-
-      // Verify the session was created
-      const { data: sessionData } = await supabase.auth.getSession();
-      console.log('Session verification:', sessionData.session ? 'Session exists' : 'No session found');
-
+      // Set the user state
       setUser(data.user);
+
       return data.user;
     } catch (error) {
-      console.error('Sign-in exception:', error);
       throw error;
     }
   };

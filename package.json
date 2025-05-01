@@ -21,6 +21,7 @@
     "@daily-co/daily-js": "^0.78.0",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/supabase-js": "^2.49.4",
+    "date-fns": "^4.1.0",
     "dotenv": "^16.5.0",
     "framer-motion": "^12.7.4",
     "next": "14.0.4",

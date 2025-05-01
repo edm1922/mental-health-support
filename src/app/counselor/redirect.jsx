@@ -32,7 +32,7 @@ export default function CounselorRedirect() {
 
       if (isCounselor) {
         console.log("User is a counselor, redirecting to dashboard");
-        router.push('/counselor-dashboard');
+        router.push('/counselor/dashboard');
       } else {
         console.log("User is not a counselor, redirecting to home");
         router.push('/home');

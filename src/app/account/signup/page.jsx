@@ -1,13 +1,13 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/utils/useAuth';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { supabase } from '@/utils/supabaseClient';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/Card';
 import { FallbackCard, FallbackCardHeader, FallbackCardContent, FallbackCardFooter } from '@/components/ui/FallbackCard';
 import { Button } from '@/components/ui/Button';
 import FallbackButton from '@/components/ui/FallbackButton';
-import Navbar from '@/components/ui/Navbar';
 import './signup.css';
 
 const SignUp = () => {
@@ -20,6 +20,9 @@ const SignUp = () => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -113,8 +116,6 @@ const SignUp = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 flex flex-col signup-container">
-      <Navbar />
-
       <div className="flex-grow flex items-center justify-center px-4 py-12">
         {/* Try to use the Card component first */}
         <div className="hidden sm:block w-full max-w-md">
@@ -225,12 +226,23 @@ const SignUp = () => {
           </CardContent>
 
           <CardFooter className="text-center border-t border-gray-100 pt-6 card-footer">
-            <p className="text-gray-600">
-              Already have an account?{' '}
-              <Link href="/account/signin" className="text-primary-600 hover:text-primary-800 font-medium link">
-                Sign in
-              </Link>
-            </p>
+            <div className="space-y-4">
+              <p className="text-gray-600">
+                Already have an account?{' '}
+                <Link href="/account/signin" className="text-primary-600 hover:text-primary-800 font-medium link">
+                  Sign in
+                </Link>
+              </p>
+
+              <div className="flex justify-center">
+                <Link href="/" className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                  </svg>
+                  Go Home
+                </Link>
+              </div>
+            </div>
           </CardFooter>
           </Card>
         </div>
@@ -326,12 +338,23 @@ const SignUp = () => {
             </FallbackCardContent>
 
             <FallbackCardFooter className="text-center border-t border-gray-100 pt-6 card-footer">
-              <p className="text-gray-600">
-                Already have an account?{' '}
-                <Link href="/account/signin" className="text-primary-600 hover:text-primary-800 font-medium link">
-                  Sign in
-                </Link>
-              </p>
+              <div className="space-y-4">
+                <p className="text-gray-600">
+                  Already have an account?{' '}
+                  <Link href="/account/signin" className="text-primary-600 hover:text-primary-800 font-medium link">
+                    Sign in
+                  </Link>
+                </p>
+
+                <div className="flex justify-center">
+                  <Link href="/" className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                    </svg>
+                    Go Home
+                  </Link>
+                </div>
+              </div>
             </FallbackCardFooter>
           </FallbackCard>
         </div>

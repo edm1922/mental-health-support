@@ -14,6 +14,10 @@ export default function CounselorDashboardPage() {
   const [sessions, setSessions] = useState([]);
 
   useEffect(() => {
+    // Redirect to the new counselor dashboard path
+    router.push('/counselor/dashboard');
+    return;
+
     const checkAuth = async () => {
       try {
         console.log("Checking authentication on counselor dashboard...");
@@ -31,7 +35,7 @@ export default function CounselorDashboardPage() {
         if (!session) {
           console.log("No session found, redirecting to signin");
           // Use window.location for a hard redirect
-          window.location.href = "/account/signin?redirect=/counselor-dashboard";
+          window.location.href = "/account/signin?redirect=/counselor/dashboard";
           return;
         }
 

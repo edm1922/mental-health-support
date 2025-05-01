@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Navbar from '../../components/ui/Navbar';
 import Footer from '../../components/ui/Footer';
 import RoleBasedActionCards from '../../components/RoleBasedActionCards';
@@ -20,11 +19,23 @@ const EmotionAIAssistant = dynamic(
 );
 
 export default function HomePage() {
-  const router = useRouter();
   const { data: user, loading: userLoading, profile } = useUser();
   const { showError } = useNotification();
   const [pageLoading, setPageLoading] = useState(true);
   const [userStats, setUserStats] = useState({});
+
+  // Check user role and redirect if needed
+  useEffect(() => {
+    if (user && profile) {
+      // If user is a counselor or admin, redirect to the appropriate dashboard
+      if (profile.role === 'counselor' || profile.role === 'admin') {
+        const redirectUrl = profile.role === 'counselor' ? '/counselor/dashboard' : '/admin/dashboard';
+        console.log(`User is a ${profile.role}, redirecting to ${redirectUrl}`);
+        window.location.href = redirectUrl;
+        return;
+      }
+    }
+  }, [user, profile]);
 
   // Fetch user stats
   useEffect(() => {
@@ -102,6 +113,8 @@ export default function HomePage() {
     return () => clearTimeout(timer);
   }, [user, userLoading, showError]);
 
+
+
   if (pageLoading || userLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -127,6 +140,8 @@ export default function HomePage() {
 
         {/* Role-based action cards */}
         <RoleBasedActionCards userRole={profile?.role || 'user'} />
+
+
       </div>
 
       {/* Footer */}

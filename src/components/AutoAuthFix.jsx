@@ -20,32 +20,8 @@ export default function AutoAuthFix() {
           return;
         }
 
-        // Fix RLS policies directly using Supabase client instead of API
-        try {
-          console.log('Fixing RLS policies directly...');
-
-          // Disable RLS on key tables
-          await supabase.rpc('exec_sql', {
-            sql: 'ALTER TABLE IF EXISTS public.user_profiles DISABLE ROW LEVEL SECURITY;'
-          });
-          await supabase.rpc('exec_sql', {
-            sql: 'ALTER TABLE IF EXISTS public.mental_health_checkins DISABLE ROW LEVEL SECURITY;'
-          });
-          await supabase.rpc('exec_sql', {
-            sql: 'ALTER TABLE IF EXISTS public.counseling_sessions DISABLE ROW LEVEL SECURITY;'
-          });
-          await supabase.rpc('exec_sql', {
-            sql: 'ALTER TABLE IF EXISTS public.session_messages DISABLE ROW LEVEL SECURITY;'
-          });
-          await supabase.rpc('exec_sql', {
-            sql: 'ALTER TABLE IF EXISTS public.community_posts DISABLE ROW LEVEL SECURITY;'
-          });
-
-          console.log('RLS policies fixed directly');
-        } catch (rlsError) {
-          console.error('Error fixing RLS policies directly:', rlsError);
-          // Continue anyway - this is not critical
-        }
+        // Skip RLS policy fixes as they require special permissions
+        console.log('Skipping RLS policy fixes - not critical for authentication');
 
         // Check if user profile exists
         const { data: profile, error: profileError } = await supabase
@@ -81,41 +57,8 @@ export default function AutoAuthFix() {
           } else {
             console.log('Profile created successfully');
 
-            // Create a test session and message for new users
-            const { data: newSession, error: sessionError } = await supabase
-              .from('counseling_sessions')
-              .insert({
-                counselor_id: session.user.id,
-                patient_id: session.user.id,
-                session_date: new Date().toISOString(),
-                status: 'test',
-                notes: 'This is a test session created automatically'
-              })
-              .select()
-              .single();
-
-            if (sessionError) {
-              console.error('Error creating test session:', sessionError);
-            } else if (newSession) {
-              console.log('Test session created:', newSession.id);
-
-              // Create a test message
-              const { error: messageError } = await supabase
-                .from('session_messages')
-                .insert({
-                  session_id: newSession.id,
-                  sender_id: session.user.id,
-                  recipient_id: session.user.id,
-                  message: 'Welcome! This is a test message created automatically.',
-                  is_read: false
-                });
-
-              if (messageError) {
-                console.error('Error creating test message:', messageError);
-              } else {
-                console.log('Test message created successfully');
-              }
-            }
+            // Skip creating test sessions and messages to avoid potential errors
+            console.log('Skipping test session and message creation');
           }
         }
 

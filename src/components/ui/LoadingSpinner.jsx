@@ -1,10 +1,10 @@
 "use client";
 import React from 'react';
 
-const LoadingSpinner = ({ 
-  size = 'medium', 
-  color = 'primary', 
-  text = 'Loading...', 
+const LoadingSpinner = ({
+  size = 'medium',
+  color = 'primary',
+  text = 'Loading...',
   showText = true,
   fullScreen = false,
   className = ''
@@ -47,7 +47,10 @@ const LoadingSpinner = ({
   // If fullScreen is true, center the spinner in the viewport
   if (fullScreen) {
     return (
-      <div className={`fixed inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm z-50 ${className}`}>
+      <div
+        className={`fixed inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm z-50 ${className}`}
+        data-skip-auto-scroll="true"
+      >
         <div className="text-center">
           <div className={spinnerClasses}></div>
           {showText && <p className={textClasses}>{text}</p>}

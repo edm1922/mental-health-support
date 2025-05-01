@@ -21,26 +21,30 @@ function MainComponent() {
         try {
           console.log("Checking admin status for user:", user.id);
 
-          // First check if the user is an admin
-          const adminResponse = await fetch("/api/admin/check-admin-status", {
-            headers: {
-              "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-            }
-          });
-          const adminData = await adminResponse.json();
-          console.log("Admin check response:", adminData);
+          // Check if the user is an admin directly
+          const { data: profile, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
 
-          if (!adminResponse.ok) {
-            console.error("Admin check API error:", adminData);
-            setError(`Admin check failed: ${adminData.error || 'Unknown error'}`);
+          if (profileError) {
+            console.error("Error fetching user profile:", profileError);
+            setError("Failed to fetch user profile. Please try again later.");
             setLoading(false);
             return;
           }
 
-          if (!adminData.isAdmin) {
-            console.log("User is not an admin, showing access denied");
+          if (profile.role !== 'admin') {
+            console.log("User is not an admin, role:", profile.role);
             setError("You do not have admin privileges. If you believe this is an error, please contact support.");
             setLoading(false);
+
+            // Redirect to home after 3 seconds
+            setTimeout(() => {
+              window.location.href = "/home";
+            }, 3000);
+
             return;
           }
 

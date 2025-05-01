@@ -1,11 +1,10 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/utils/useAuth';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import Navbar from '@/components/ui/Navbar';
 import { supabase } from '@/utils/supabaseClient';
 
 const SignIn = () => {
@@ -13,164 +12,145 @@ const SignIn = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const handleSubmit = async (e) => {
-    console.log('handleSubmit called with event:', e ? 'Event exists' : 'No event');
 
+
+  const handleSubmit = async (e) => {
     if (e && e.preventDefault) {
       e.preventDefault();
-      console.log('preventDefault called on event');
     }
 
     setError(null);
-    console.log('Sign-in form submitted with email:', email, 'password length:', password.length);
+    setLoading(true);
 
     // Validate inputs before proceeding
     if (!email || !password) {
-      console.error('Email or password is empty');
       setError('Email and password are required');
+      setLoading(false);
       return;
     }
 
     try {
-      console.log('Calling signIn function with email:', email);
+      console.log('Signing in with email:', email);
 
       // Sign in the user
-      const user = await signIn(email, password);
-      console.log('Sign-in successful, user:', user ? `ID: ${user.id}` : 'No user returned');
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      if (!user) {
+      if (error) {
+        throw new Error(error.message || 'Failed to sign in');
+      }
+
+      if (!data.user) {
         throw new Error('No user returned from sign-in');
       }
 
-      // Store a flag in localStorage to indicate successful sign-in
-      localStorage.setItem('justSignedIn', 'true');
+      console.log('Sign-in successful');
 
-      // Get the callback URL if specified
-      const callbackUrl = searchParams.get('callbackUrl') || searchParams.get('redirect');
+      // Get the user's role from the database
+      console.log('Getting user role from database');
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single();
 
-      // Check if the user is a counselor
-      try {
-        console.log('Checking user role for ID:', user.id);
-        const { data: profile, error } = await supabase
-          .from('user_profiles')
-          .select('role, display_name')
-          .eq('id', user.id)
-          .single();
+      // Determine redirect URL based on role
+      let redirectUrl = '/home'; // Default redirect
 
-        console.log('User profile after sign-in:', profile, error ? `Error: ${error.message}` : 'No error');
+      if (profile && !profileError) {
+        console.log('User role from database:', profile.role);
 
-        if (error) {
-          console.error('Error fetching user profile:', error);
-          // Continue with default redirection
-        } else if (profile) {
-          console.log('User role determined:', profile.role);
-
-          // If there's a specific callback URL, it takes precedence
-          if (callbackUrl) {
-            console.log('Redirecting to callback URL:', callbackUrl);
-            window.location.href = callbackUrl;
-            return;
-          }
-
-          // Otherwise redirect based on role
-          if (profile.role === 'counselor') {
-            console.log('User is a counselor, redirecting to counselor dashboard');
-            window.location.href = '/counselor-dashboard';
-            return;
-          } else if (profile.role === 'admin') {
-            console.log('User is an admin, redirecting to admin dashboard');
-            window.location.href = '/admin/dashboard';
-            return;
-          } else {
-            console.log('User is a regular user, redirecting to home page');
-            window.location.href = '/home';
-            return;
-          }
+        if (profile.role === 'counselor') {
+          // Redirect to the green-themed counselor portal
+          redirectUrl = '/counselor/dashboard/direct';
+          console.log('User is a counselor, redirecting to green counselor dashboard');
+        } else if (profile.role === 'admin') {
+          redirectUrl = '/admin/dashboard';
+          console.log('User is an admin, redirecting to admin dashboard');
         } else {
-          console.log('No profile found, redirecting to home page');
-          window.location.href = '/home';
-          return;
+          console.log('User is a regular user, redirecting to home page');
         }
-      } catch (profileError) {
-        console.error('Error checking user role:', profileError);
-        // Continue with default redirection
+      } else {
+        console.log('No profile found or error:', profileError);
+
+        // Try to create a profile for the user
+        try {
+          console.log('Attempting to create a profile for the user');
+          const { data: newProfile, error: createError } = await supabase
+            .from('user_profiles')
+            .upsert({
+              id: data.user.id,
+              display_name: email.split('@')[0],
+              role: 'user', // Default role is user
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+          if (createError) {
+            console.error('Error creating profile:', createError);
+          } else {
+            console.log('Profile created successfully:', newProfile);
+            // Use the new profile's role for redirection
+            if (newProfile.role === 'counselor') {
+              // Redirect to the green-themed counselor portal
+              redirectUrl = '/counselor/dashboard/direct';
+            } else if (newProfile.role === 'admin') {
+              redirectUrl = '/admin/dashboard';
+            }
+          }
+        } catch (createError) {
+          console.error('Exception creating profile:', createError);
+        }
       }
 
-      // Default redirection if role check fails or no specific role handling
-      if (callbackUrl) {
-        console.log('Redirecting to callback URL (default):', callbackUrl);
-        window.location.href = callbackUrl;
-      } else {
-        console.log('No callback URL, redirecting to home (default)');
-        window.location.href = '/home';
-      }
+      console.log('Redirecting to:', redirectUrl);
+
+      // Store the authentication in localStorage with the correct key format
+      // This is crucial for Supabase to recognize the session
+      localStorage.setItem('sb-euebogudyyeodzkvhyef-auth-token', JSON.stringify({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+        expires_at: Math.floor(Date.now() / 1000) + data.session.expires_in,
+        token_type: 'bearer',
+        user: data.user
+      }));
+
+      // Store the role in localStorage for easier access
+      localStorage.setItem('userRole', profile?.role || 'user');
+
+      // Wait a moment for the session to be established
+      console.log('Waiting for session to be established before redirecting...');
+      setTimeout(() => {
+        // Use href instead of replace for more reliable navigation
+        console.log('Redirecting now to:', redirectUrl);
+        window.location.href = redirectUrl;
+      }, 1000);
     } catch (error) {
-      console.error('Sign-in error in component:', error);
+      console.error('Sign-in error:', error);
       setError(error.message || 'Failed to sign in. Please check your credentials.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Add debug functions to help troubleshoot
-  const debugSignIn = () => {
-    console.log('Debug sign-in clicked');
-    // Try to sign in with test credentials
-    signIn('test@example.com', 'password123')
-      .then(user => {
-        console.log('Debug sign-in successful:', user);
-        alert('Debug sign-in successful. Check console for details.');
-        window.location.href = '/counselor-dashboard';
-      })
-      .catch(err => {
-        console.error('Debug sign-in failed:', err);
-        alert('Debug sign-in failed: ' + err.message);
-      });
-  };
 
-  // Add a direct form submission test
-  const testFormSubmission = () => {
-    console.log('Testing form submission directly');
-
-    // Set test values for email and password
-    setEmail('test@example.com');
-    setPassword('password123');
-
-    // Call the handleSubmit function directly with a mock event
-    handleSubmit({
-      preventDefault: () => console.log('preventDefault called')
-    });
-
-    console.log('Form submission test complete');
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 flex flex-col">
-      <Navbar />
-
       <div className="flex-grow flex items-center justify-center px-4 py-12">
         <Card className="w-full max-w-md animate-fade-in">
           <CardHeader>
             <h2 className="text-2xl font-bold text-gray-900 font-heading">Welcome Back</h2>
             <p className="text-gray-600">Sign in to your account to continue</p>
-            {/* Add debug buttons that are only visible in development */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="flex space-x-2 mt-2">
-                <button
-                  onClick={debugSignIn}
-                  className="text-xs text-gray-400 hover:text-gray-600"
-                >
-                  Debug Sign-in
-                </button>
-                <button
-                  onClick={testFormSubmission}
-                  className="text-xs text-gray-400 hover:text-gray-600"
-                >
-                  Test Form
-                </button>
-              </div>
-            )}
+
           </CardHeader>
 
           <CardContent>
@@ -179,6 +159,8 @@ const SignIn = () => {
                 <p>{error}</p>
               </div>
             )}
+
+
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
@@ -211,71 +193,38 @@ const SignIn = () => {
               </div>
 
               <Button
-                type="button" // Changed from submit to button
+                type="submit"
                 variant="primary"
                 size="lg"
                 fullWidth
                 className="mt-6"
-                onClick={(e) => {
-                  e.preventDefault(); // Prevent default since we're handling it manually
-                  console.log('Sign In button clicked manually');
-
-                  // Call handleSubmit directly
-                  handleSubmit({
-                    preventDefault: () => console.log('preventDefault called in button click')
-                  });
-                }}
+                disabled={loading}
               >
-                Sign In
+                {loading ? 'Signing in...' : 'Sign In'}
               </Button>
 
-              {/* Add a direct button that bypasses the form for testing */}
-              {process.env.NODE_ENV === 'development' && (
-                <button
-                  type="button"
-                  className="mt-2 w-full py-2 px-4 text-sm text-gray-500 hover:text-gray-700"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    console.log('Direct sign-in button clicked');
-                    handleSubmit({
-                      preventDefault: () => console.log('preventDefault called in direct button')
-                    });
-                  }}
-                >
-                  Direct Sign In (Debug)
-                </button>
-              )}
+
             </form>
           </CardContent>
 
           <CardFooter className="text-center border-t border-gray-100 pt-6">
-            <p className="text-gray-600">
-              Don't have an account?{' '}
-              <Link href="/account/signup" className="text-primary-600 hover:text-primary-800 font-medium">
-                Create an account
-              </Link>
-            </p>
+            <div className="space-y-4">
+              <p className="text-gray-600">
+                Don't have an account?{' '}
+                <Link href="/account/signup" className="text-primary-600 hover:text-primary-800 font-medium">
+                  Create an account
+                </Link>
+              </p>
 
-            {/* Add a direct link to counselor dashboard for testing */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <p className="text-xs text-gray-400 mb-2">Development Testing Links:</p>
-                <div className="flex justify-center space-x-4">
-                  <button
-                    onClick={() => window.location.href = '/counselor-dashboard'}
-                    className="text-xs text-blue-400 hover:text-blue-600"
-                  >
-                    Test Counselor Dashboard
-                  </button>
-                  <button
-                    onClick={() => window.location.href = '/home'}
-                    className="text-xs text-green-400 hover:text-green-600"
-                  >
-                    Test Home
-                  </button>
-                </div>
+              <div className="flex justify-center">
+                <Link href="/" className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                  </svg>
+                  Go Home
+                </Link>
               </div>
-            )}
+            </div>
           </CardFooter>
         </Card>
       </div>

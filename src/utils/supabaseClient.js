@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Get the values from environment variables or use hardcoded values for development
 let supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://euebogudyyeodzkvhyef.supabase.co';
-let supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1ZWJvZ3VkeXllb2R6a3ZoeWVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ4NjM5NDgsImV4cCI6MjA2MDQzOTk0OH0.b68JOxrpuFwWb2K3DraYvv32uqomvK0r1imbOCG0HKc';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1ZWJvZ3VkeXllb2R6a3ZoeWVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ4NjM5NDgsImV4cCI6MjA2MDQzOTk0OH0.b68JOxrpuFwWb2K3DraYvv32uqomvK0r1imbOCG0HKc';
 
 // Make sure the URL has the correct format
 if (supabaseUrl && !supabaseUrl.startsWith('https://')) {
@@ -12,6 +12,9 @@ if (supabaseUrl && !supabaseUrl.endsWith('.supabase.co') && !supabaseUrl.include
   supabaseUrl = supabaseUrl + '.supabase.co';
 }
 
+// Export the URL for use in other files
+export { supabaseUrl, supabaseAnonKey };
+
 // Log the values for debugging
 console.log('Supabase URL:', supabaseUrl);
 console.log('Supabase Anon Key:', supabaseAnonKey.substring(0, 10) + '...');
@@ -20,29 +23,95 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Supabase URL or Anonymous Key is missing.');
 }
 
+// Helper function to get the storage key
+export const getStorageKey = () => {
+  const projectRef = supabaseUrl.includes('//')
+    ? supabaseUrl.split('//')[1].split('.')[0]
+    : supabaseUrl.split('.')[0];
+  return `sb-${projectRef}-auth-token`;
+};
+
 // Create a single supabase client for interacting with your database
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    storageKey: 'supabase.auth.token',
+    // Use the default storage key that Supabase expects
+    storageKey: getStorageKey(),
     storage: {
       getItem: (key) => {
         if (typeof window === 'undefined') return null;
-        const value = localStorage.getItem(key);
+
+        // Try to get from localStorage first
+        let value = localStorage.getItem(key);
+
+        // If not found and it's the auth token, try the old key formats as fallback
+        if (!value && key.includes('-auth-token')) {
+          // Try old key formats
+          const oldKeys = [
+            'supabase.auth.token',
+            'supabase.auth.token-code-verifier'
+          ];
+
+          for (const oldKey of oldKeys) {
+            const oldValue = localStorage.getItem(oldKey);
+            if (oldValue) {
+              console.log(`Found token in old storage key, migrating from ${oldKey} to ${key}`);
+              try {
+                localStorage.setItem(key, oldValue);
+                localStorage.removeItem(oldKey);
+                value = oldValue;
+                break;
+              } catch (e) {
+                console.error('Error migrating token:', e);
+              }
+            }
+          }
+        }
+
         console.log(`Getting auth from storage: ${key} = ${value ? 'exists' : 'not found'}`);
         return value;
       },
       setItem: (key, value) => {
         if (typeof window === 'undefined') return;
         console.log(`Setting auth in storage: ${key}`);
-        localStorage.setItem(key, value);
+        try {
+          localStorage.setItem(key, value);
+
+          // Also set a cookie as a backup
+          document.cookie = `${key}=${encodeURIComponent(value)};path=/;max-age=${60 * 60 * 24 * 7};SameSite=Lax`;
+        } catch (e) {
+          console.error('Error setting auth token:', e);
+        }
       },
       removeItem: (key) => {
         if (typeof window === 'undefined') return;
         console.log(`Removing auth from storage: ${key}`);
-        localStorage.removeItem(key);
+
+        try {
+          localStorage.removeItem(key);
+
+          // Also remove the cookie
+          document.cookie = `${key}=;path=/;max-age=0;SameSite=Lax`;
+
+          // Also remove the old key formats if they exist
+          if (key.includes('-auth-token')) {
+            const oldKeys = [
+              'supabase.auth.token',
+              'supabase.auth.token-code-verifier'
+            ];
+
+            for (const oldKey of oldKeys) {
+              if (localStorage.getItem(oldKey)) {
+                console.log(`Also removing old storage key: ${oldKey}`);
+                localStorage.removeItem(oldKey);
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Error removing auth token:', e);
+        }
       },
     },
   },

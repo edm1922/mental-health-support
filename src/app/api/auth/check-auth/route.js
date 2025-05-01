@@ -6,52 +6,94 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    console.log('Check auth API called');
+
     // Initialize Supabase client
     const cookieStore = cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
-    
+
     // Get current session
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    
+
     if (sessionError) {
       console.error('Error checking session:', sessionError);
-      return NextResponse.json({ 
-        authenticated: false, 
-        error: sessionError.message 
+      return NextResponse.json({
+        authenticated: false,
+        error: sessionError.message
       });
     }
-    
+
     if (!session) {
+      console.log('No active session found');
       return NextResponse.json({ authenticated: false });
     }
-    
+
+    console.log('Session found for user:', session.user.id);
+
     // Get user details
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
+
     if (userError) {
       console.error('Error getting user:', userError);
-      return NextResponse.json({ 
-        authenticated: false, 
-        error: userError.message 
+      return NextResponse.json({
+        authenticated: false,
+        error: userError.message
       });
     }
-    
+
+    // Get user profile to determine role
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('role, display_name')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) {
+      console.error('Error fetching profile:', profileError);
+      return NextResponse.json({
+        authenticated: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          created_at: user.created_at
+        },
+        session: {
+          expires_at: session.expires_at
+        },
+        error: 'Failed to fetch user profile'
+      });
+    }
+
+    console.log('User profile found with role:', profile.role);
+
+    // Determine redirect URL based on role
+    let redirectUrl = '/home';
+
+    if (profile.role === 'counselor') {
+      redirectUrl = '/counselor/dashboard';
+    } else if (profile.role === 'admin') {
+      redirectUrl = '/admin/dashboard';
+    }
+
     return NextResponse.json({
       authenticated: true,
       user: {
         id: user.id,
         email: user.email,
-        created_at: user.created_at
+        created_at: user.created_at,
+        role: profile.role,
+        display_name: profile.display_name
       },
       session: {
         expires_at: session.expires_at
-      }
+      },
+      redirectUrl
     });
   } catch (error) {
     console.error('Unexpected error in check-auth:', error);
-    return NextResponse.json({ 
-      authenticated: false, 
-      error: error.message 
+    return NextResponse.json({
+      authenticated: false,
+      error: error.message
     }, { status: 500 });
   }
 }
