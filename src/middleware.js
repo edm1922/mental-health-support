@@ -68,9 +68,9 @@ export async function middleware(request) {
         if (!error && profile) {
           // Redirect based on role
           if (profile.role === 'admin') {
-            return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+            return NextResponse.redirect(new URL('/admin/dashboard?no_redirect=true', request.url));
           } else if (profile.role === 'counselor') {
-            return NextResponse.redirect(new URL('/counselor/dashboard/direct', request.url));
+            return NextResponse.redirect(new URL('/counselor/dashboard/direct?no_redirect=true', request.url));
           } else {
             // Default for regular users or unknown roles
             return NextResponse.redirect(new URL('/home', request.url));
@@ -164,7 +164,22 @@ export async function middleware(request) {
 
     // Check user_metadata for role (faster and more reliable)
     const userMetadataRole = session.user.user_metadata?.role;
+
+    // If user has counselor role in metadata, update their profile to match
     if (userMetadataRole === 'counselor') {
+      try {
+        // Update the profile to ensure it matches the metadata
+        await supabase
+          .from('user_profiles')
+          .upsert({
+            id: session.user.id,
+            role: 'counselor',
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'id' });
+      } catch (updateError) {
+        console.error('Error updating counselor role in profile:', updateError);
+      }
+
       return res;
     }
 
@@ -212,6 +227,27 @@ export async function middleware(request) {
         return NextResponse.redirect(redirectUrl);
       }
 
+      // Check user_metadata for role (faster and more reliable)
+      const userMetadataRole = session.user.user_metadata?.role;
+
+      // If user has admin role in metadata, update their profile to match
+      if (userMetadataRole === 'admin') {
+        try {
+          // Update the profile to ensure it matches the metadata
+          await supabase
+            .from('user_profiles')
+            .upsert({
+              id: session.user.id,
+              role: 'admin',
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'id' });
+
+          return res;
+        } catch (updateError) {
+          console.error('Error updating admin role in profile:', updateError);
+        }
+      }
+
       // Check if the user is an admin
       const { data: profile, error } = await supabase
         .from('user_profiles')
@@ -249,7 +285,37 @@ export async function middleware(request) {
     // If the user is already authenticated, redirect them based on role
     if (session) {
       try {
-        // Get the user's role from their profile
+        // Check user_metadata for role first (faster and more reliable)
+        const userMetadataRole = session.user.user_metadata?.role;
+
+        // If user has a role in metadata, update their profile to match
+        if (userMetadataRole === 'counselor' || userMetadataRole === 'admin') {
+          try {
+            // Update the profile to ensure it matches the metadata
+            await supabase
+              .from('user_profiles')
+              .upsert({
+                id: session.user.id,
+                role: userMetadataRole,
+                updated_at: new Date().toISOString()
+              }, { onConflict: 'id' });
+
+            console.log('Middleware: Updated profile role from metadata:', userMetadataRole);
+
+            // Redirect based on metadata role
+            if (userMetadataRole === 'counselor') {
+              console.log('Middleware: Redirecting counselor to dashboard (from metadata)');
+              return NextResponse.redirect(new URL('/counselor/dashboard/direct?no_redirect=true', request.url));
+            } else if (userMetadataRole === 'admin') {
+              console.log('Middleware: Redirecting admin to dashboard (from metadata)');
+              return NextResponse.redirect(new URL('/admin/dashboard?no_redirect=true', request.url));
+            }
+          } catch (updateError) {
+            console.error('Error updating role in profile from metadata:', updateError);
+          }
+        }
+
+        // Get the user's role from their profile as a fallback
         const { data: profile, error } = await supabase
           .from('user_profiles')
           .select('role')

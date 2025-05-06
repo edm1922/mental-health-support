@@ -25,13 +25,19 @@ export const useUser = () => {
         const displayName = session?.user?.user_metadata?.display_name ||
                            session?.user?.email?.split('@')[0] || 'User';
 
+        // Check if the user has a role in their metadata
+        const { data: userData } = await supabase.auth.getUser();
+        const userRole = userData?.user?.user_metadata?.role || 'user';
+
+        console.log('Creating profile with role from metadata:', userRole);
+
         const { data: newProfile, error: createError } = await supabase
           .from('user_profiles')
           .insert({
             id: userId,
             display_name: displayName,
             bio: '',
-            role: 'user',
+            role: userRole,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           })

@@ -67,7 +67,7 @@ const SignIn = () => {
         .single();
 
       // Determine the redirect URL
-      let redirectUrl = '/home'; // Default redirect
+      let redirectUrl = '/home'; // Default redirect for regular users
 
       // Use role-based redirect
       if (profile && !profileError) {
@@ -102,12 +102,18 @@ const SignIn = () => {
         // Try to create a profile for the user
         try {
           console.log('Attempting to create a profile for the user');
+          // Get user metadata to check for role
+          const { data: userData } = await supabase.auth.getUser();
+          const userRole = userData?.user?.user_metadata?.role || 'user';
+
+          console.log('Creating profile with role from metadata:', userRole);
+
           const { data: newProfile, error: createError } = await supabase
             .from('user_profiles')
             .upsert({
               id: data.user.id,
               display_name: email.split('@')[0],
-              role: 'user', // Default role is user
+              role: userRole, // Use role from metadata or default to user
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             })
@@ -120,10 +126,10 @@ const SignIn = () => {
             console.log('Profile created successfully:', newProfile);
             // Use the new profile's role for redirection
             if (newProfile.role === 'counselor') {
-              // Redirect to the green-themed counselor portal
-              redirectUrl = '/counselor/dashboard/direct';
+              // Redirect to the green-themed counselor portal with no_redirect parameter
+              redirectUrl = '/counselor/dashboard/direct?no_redirect=true';
             } else if (newProfile.role === 'admin') {
-              redirectUrl = '/admin/dashboard';
+              redirectUrl = '/admin/dashboard?no_redirect=true';
             }
           }
         } catch (createError) {

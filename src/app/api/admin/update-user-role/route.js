@@ -42,6 +42,26 @@ export async function POST(request) {
     // Try multiple approaches to update the user's role
     console.log(`Attempting to update user ${userId} role to ${role}`);
 
+    // First, update the user's metadata to include the role
+    try {
+      const { error: metadataError } = await supabase.auth.admin.updateUserById(
+        userId,
+        {
+          user_metadata: { role: role }
+        }
+      );
+
+      if (metadataError) {
+        console.error('Error updating user metadata:', metadataError);
+        // Continue anyway, we'll try to update the profile
+      } else {
+        console.log('User metadata updated successfully');
+      }
+    } catch (metadataError) {
+      console.error('Exception updating user metadata:', metadataError);
+      // Continue anyway, we'll try to update the profile
+    }
+
     // Approach 1: Direct update
     const { data: updateResult, error: updateError } = await supabase
       .from('user_profiles')

@@ -26,15 +26,52 @@ export default function HomePage() {
 
   // Check user role and redirect if needed
   useEffect(() => {
-    if (user && profile) {
-      // If user is a counselor or admin, redirect to the appropriate dashboard
-      if (profile.role === 'counselor' || profile.role === 'admin') {
-        const redirectUrl = profile.role === 'counselor' ? '/counselor/dashboard' : '/admin/dashboard';
-        console.log(`User is a ${profile.role}, redirecting to ${redirectUrl}`);
-        window.location.href = redirectUrl;
-        return;
+    const checkUserRole = async () => {
+      if (user && profile) {
+        // Check user metadata for role first (more reliable)
+        const { data: userData } = await supabase.auth.getUser();
+        const metadataRole = userData?.user?.user_metadata?.role;
+
+        // If user has a role in metadata, update their profile to match
+        if (metadataRole === 'counselor' || metadataRole === 'admin') {
+          try {
+            // Update the profile to ensure it matches the metadata
+            await supabase
+              .from('user_profiles')
+              .upsert({
+                id: profile.id,
+                role: metadataRole,
+                updated_at: new Date().toISOString()
+              }, { onConflict: 'id' });
+
+            console.log(`Updated profile role from metadata: ${metadataRole}`);
+
+            // Add no_redirect parameter to prevent middleware redirection loops
+            const redirectUrl = metadataRole === 'counselor'
+              ? '/counselor/dashboard/direct?no_redirect=true'
+              : '/admin/dashboard?no_redirect=true';
+            console.log(`User is a ${metadataRole} (from metadata), redirecting to ${redirectUrl}`);
+            window.location.href = redirectUrl;
+            return;
+          } catch (updateError) {
+            console.error('Error updating role in profile from metadata:', updateError);
+          }
+        }
+
+        // If user is a counselor or admin based on profile, redirect to the appropriate dashboard
+        if (profile.role === 'counselor' || profile.role === 'admin') {
+          // Add no_redirect parameter to prevent middleware redirection loops
+          const redirectUrl = profile.role === 'counselor'
+            ? '/counselor/dashboard/direct?no_redirect=true'
+            : '/admin/dashboard?no_redirect=true';
+          console.log(`User is a ${profile.role}, redirecting to ${redirectUrl}`);
+          window.location.href = redirectUrl;
+          return;
+        }
       }
-    }
+    };
+
+    checkUserRole();
   }, [user, profile]);
 
   // Fetch user stats

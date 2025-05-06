@@ -184,6 +184,37 @@ export async function POST(request, { params }) {
         console.error('Error checking exec_sql function:', functionError);
       }
 
+      // First, update the user's metadata to include the role
+      try {
+        // Get the user's auth data
+        const { data: authData, error: authError } = await supabase.auth.admin.getUserById(application.user_id);
+
+        if (authError) {
+          console.error('Error getting user auth data:', authError);
+        } else {
+          console.log('User auth data:', authData);
+
+          // Update the user's metadata
+          const { error: metadataError } = await supabase.auth.admin.updateUserById(
+            application.user_id,
+            {
+              user_metadata: {
+                ...authData.user.user_metadata,
+                role: 'counselor'
+              }
+            }
+          );
+
+          if (metadataError) {
+            console.error('Error updating user metadata:', metadataError);
+          } else {
+            console.log('User metadata updated successfully');
+          }
+        }
+      } catch (metadataError) {
+        console.error('Exception updating user metadata:', metadataError);
+      }
+
       // Use a direct SQL query to update the role for maximum visibility
       const { data: updateResult, error: roleUpdateError } = await supabase.rpc('exec_sql', {
         sql: `UPDATE public.user_profiles SET role = 'counselor', updated_at = NOW() WHERE id = '${application.user_id}' RETURNING id, role;`
