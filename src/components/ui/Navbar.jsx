@@ -73,7 +73,8 @@ export default function Navbar({ transparent = false }) {
     try {
       await signOut();
       showSuccess('Successfully signed out');
-      window.location.href = '/';
+      // Add stay=true parameter to prevent middleware from redirecting
+      window.location.href = '/?stay=true';
     } catch (error) {
       console.error('Error signing out:', error);
       showError('Failed to sign out. Please try again.');

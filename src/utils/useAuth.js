@@ -49,12 +49,22 @@ export const useAuth = () => {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Error signing out:', error);
+    try {
+      // Set a cookie to indicate this is a sign-out redirect
+      document.cookie = "sign-out=true; path=/; max-age=10"; // 10 seconds expiry
+
+      // Perform the sign-out
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Error signing out:', error);
+        throw error;
+      }
+
+      setUser(null);
+    } catch (error) {
+      console.error('Error in signOut function:', error);
       throw error;
     }
-    setUser(null);
   };
 
   const signUp = async (email, password, displayName) => {

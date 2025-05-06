@@ -12,7 +12,8 @@ export default function CounselorNavbar() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    window.location.href = '/';
+    // Add stay=true parameter to prevent middleware from redirecting
+    window.location.href = '/?stay=true';
   };
 
   const navItems = [

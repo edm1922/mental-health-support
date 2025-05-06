@@ -55,8 +55,12 @@ export async function middleware(request) {
   // Handle role-based redirection for the home page
   // Skip redirection if the 'stay' query parameter is present
   if (request.nextUrl.pathname === '/' && request.nextUrl.searchParams.get('stay') !== 'true') {
-    // Only redirect if the user is authenticated
-    if (session) {
+    // Check if this is a sign-out redirect by checking for a special header or cookie
+    const isSignOut = request.headers.get('x-sign-out') === 'true' ||
+                      request.cookies.get('sign-out') === 'true';
+
+    // Only redirect if the user is authenticated and it's not a sign-out
+    if (session && !isSignOut) {
       try {
         // Get the user's role from their profile
         const { data: profile, error } = await supabase

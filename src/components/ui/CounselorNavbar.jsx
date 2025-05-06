@@ -33,7 +33,8 @@ export default function CounselorNavbar({ transparent = false }) {
     try {
       await signOut();
       showSuccess('Successfully signed out');
-      window.location.href = '/';
+      // Add stay=true parameter to prevent middleware from redirecting
+      window.location.href = '/?stay=true';
     } catch (error) {
       console.error('Error signing out:', error);
       showError('Failed to sign out. Please try again.');
@@ -56,11 +57,11 @@ export default function CounselorNavbar({ transparent = false }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Link href="/counselor/dashboard" className={`flex-shrink-0 flex items-center font-bold text-lg md:text-xl truncate max-w-[180px] sm:max-w-none ${logoColor}`}>
+            <Link href="/counselor/dashboard/direct" className={`flex-shrink-0 flex items-center font-bold text-lg md:text-xl truncate max-w-[180px] sm:max-w-none ${logoColor}`}>
               <span className="mr-2">👨‍⚕️</span> Counselor Portal
             </Link>
             <div className="hidden md:ml-8 md:flex md:space-x-6">
-              <Link href="/counselor/dashboard" className={`px-3 py-2 rounded-md text-sm font-medium ${textColor} hover:text-indigo-200 transition-colors`}>
+              <Link href="/counselor/dashboard/direct" className={`px-3 py-2 rounded-md text-sm font-medium ${textColor} hover:text-indigo-200 transition-colors`}>
                 Dashboard
               </Link>
               <Link href="/counselor/sessions" className={`px-3 py-2 rounded-md text-sm font-medium ${textColor} hover:text-indigo-200 transition-colors`}>
@@ -121,7 +122,7 @@ export default function CounselorNavbar({ transparent = false }) {
                     aria-labelledby="user-menu-button"
                     tabIndex="-1"
                   >
-                    <Link href="/counselor/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">
+                    <Link href="/counselor/dashboard/direct" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">
                       Dashboard
                     </Link>
                     <Link href="/counselor/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">
@@ -183,7 +184,7 @@ export default function CounselorNavbar({ transparent = false }) {
               />
             </div>
             <Link
-              href="/counselor/dashboard"
+              href="/counselor/dashboard/direct"
               className="block px-3 py-3 rounded-md text-base font-medium text-white hover:text-indigo-200 hover:bg-indigo-700 border-b border-indigo-700"
               onClick={() => setMobileMenuOpen(false)}
             >
