@@ -74,11 +74,13 @@ const SignIn = () => {
         console.log('User role from database:', profile.role);
 
         if (profile.role === 'counselor') {
-          redirectUrl = '/counselor/dashboard/direct';
-          console.log('User is a counselor, redirecting to counselor dashboard');
+          // Add no_redirect parameter to prevent middleware redirection loops
+          redirectUrl = '/counselor/dashboard/direct?no_redirect=true';
+          console.log('User is a counselor, redirecting to counselor dashboard with no_redirect flag');
         } else if (profile.role === 'admin') {
-          redirectUrl = '/admin/dashboard';
-          console.log('User is an admin, redirecting to admin dashboard');
+          // Add no_redirect parameter to prevent middleware redirection loops
+          redirectUrl = '/admin/dashboard?no_redirect=true';
+          console.log('User is an admin, redirecting to admin dashboard with no_redirect flag');
         } else {
           console.log('User is a regular user, redirecting to home page');
         }
@@ -86,7 +88,13 @@ const SignIn = () => {
 
       // Override with redirect parameter if available
       if (redirectParam) {
-        redirectUrl = decodeURIComponent(redirectParam);
+        // Add no_redirect parameter if it's a counselor or admin dashboard redirect
+        const decodedParam = decodeURIComponent(redirectParam);
+        if (decodedParam.includes('/counselor/dashboard') || decodedParam.includes('/admin/dashboard')) {
+          redirectUrl = decodedParam + (decodedParam.includes('?') ? '&' : '?') + 'no_redirect=true';
+        } else {
+          redirectUrl = decodedParam;
+        }
         console.log('Using redirect parameter:', redirectUrl);
       } else {
         console.log('No profile found or error:', profileError);

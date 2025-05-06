@@ -19,6 +19,10 @@ export const config = {
 };
 
 export async function middleware(request) {
+  // Log the request URL and environment for debugging
+  console.log(`Middleware: Processing ${request.nextUrl.pathname} (${process.env.NODE_ENV})`);
+  console.log(`Middleware: Query params: ${request.nextUrl.search}`);
+
   const res = NextResponse.next();
 
   // Initialize Supabase client for all routes
@@ -27,6 +31,12 @@ export async function middleware(request) {
   // Try to get the session
   let sessionData = await supabase.auth.getSession();
   let session = sessionData.data.session;
+
+  // Log session status
+  console.log(`Middleware: Session exists: ${!!session}`);
+  if (session) {
+    console.log(`Middleware: User ID: ${session.user.id}`);
+  }
 
   // Always try to refresh the session to ensure it's up-to-date
   try {
@@ -117,13 +127,9 @@ export async function middleware(request) {
 
   // Handle authentication for counselor dashboard
   if (request.nextUrl.pathname.startsWith('/counselor') || request.nextUrl.pathname.startsWith('/counselor-dashboard')) {
-    // Check if we're coming from the sign-in page (via Referer header)
-    const referer = request.headers.get('referer') || '';
-    const isFromSignIn = referer.includes('/account/signin');
-
-    // If we're coming directly from sign-in, allow access to break potential loops
-    if (isFromSignIn) {
-      console.log('Middleware: Request coming from sign-in page, allowing access to break potential loops');
+    // Check if the no_redirect flag is set - this is more reliable than checking the Referer header
+    if (request.nextUrl.searchParams.get('no_redirect') === 'true') {
+      console.log('Middleware: no_redirect parameter detected, allowing access to counselor dashboard');
       return res;
     }
 
@@ -192,13 +198,9 @@ export async function middleware(request) {
 
   // Handle admin routes
   if (request.nextUrl.pathname.startsWith('/admin')) {
-    // Check if we're coming from the sign-in page (via Referer header)
-    const referer = request.headers.get('referer') || '';
-    const isFromSignIn = referer.includes('/account/signin');
-
-    // If we're coming directly from sign-in, allow access to break potential loops
-    if (isFromSignIn) {
-      console.log('Middleware: Admin request coming from sign-in page, allowing access to break potential loops');
+    // Check if the no_redirect flag is set - this is more reliable than checking the Referer header
+    if (request.nextUrl.searchParams.get('no_redirect') === 'true') {
+      console.log('Middleware: no_redirect parameter detected, allowing access to admin dashboard');
       return res;
     }
 
@@ -236,9 +238,11 @@ export async function middleware(request) {
 
   // Handle sign-in page - redirect authenticated users based on role
   if (request.nextUrl.pathname === '/account/signin') {
-    // Check if we have a counselor_redirect parameter - if so, don't redirect
-    if (request.nextUrl.searchParams.get('counselor_redirect') === 'true') {
-      console.log('Middleware: counselor_redirect parameter detected, allowing access to signin page');
+    // Check if we have a special redirect parameter - if so, don't redirect
+    if (request.nextUrl.searchParams.get('counselor_redirect') === 'true' ||
+        request.nextUrl.searchParams.get('admin_redirect') === 'true' ||
+        request.nextUrl.searchParams.get('no_auto_redirect') === 'true') {
+      console.log('Middleware: Special redirect parameter detected, allowing access to signin page');
       return res;
     }
 
@@ -258,10 +262,10 @@ export async function middleware(request) {
         if (!error && profile) {
           if (profile.role === 'counselor') {
             console.log('Middleware: Redirecting counselor to dashboard');
-            return NextResponse.redirect(new URL('/counselor/dashboard/direct', request.url));
+            return NextResponse.redirect(new URL('/counselor/dashboard/direct?no_redirect=true', request.url));
           } else if (profile.role === 'admin') {
             console.log('Middleware: Redirecting admin to dashboard');
-            return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+            return NextResponse.redirect(new URL('/admin/dashboard?no_redirect=true', request.url));
           } else {
             console.log('Middleware: Redirecting regular user to home');
             return NextResponse.redirect(new URL('/home', request.url));
