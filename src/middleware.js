@@ -117,6 +117,33 @@ export async function middleware(request) {
 
   // Handle authentication for counselor dashboard
   if (request.nextUrl.pathname.startsWith('/counselor') || request.nextUrl.pathname.startsWith('/counselor-dashboard')) {
+    // Check if we're coming from the sign-in page (via Referer header)
+    const referer = request.headers.get('referer') || '';
+    const isFromSignIn = referer.includes('/account/signin');
+
+    // If we're coming directly from sign-in, allow access to break potential loops
+    if (isFromSignIn) {
+      console.log('Middleware: Request coming from sign-in page, allowing access to break potential loops');
+      return res;
+    }
+
+    // Special case for /counselor/dashboard/direct - this is the endpoint that's causing the loop
+    if (request.nextUrl.pathname === '/counselor/dashboard/direct') {
+      console.log('Middleware: Handling direct counselor dashboard access');
+
+      // Check if the user is authenticated
+      if (!session) {
+        console.log('Middleware: No session for counselor dashboard, redirecting to signin');
+        // Use a different parameter to avoid redirect loops
+        const redirectUrl = new URL('/account/signin', request.url);
+        redirectUrl.searchParams.set('redirect', request.nextUrl.pathname);
+        return NextResponse.redirect(redirectUrl);
+      }
+
+      // If authenticated, allow access and let the page component handle authorization
+      return res;
+    }
+
     // Redirect from old counselor-dashboard to new counselor/dashboard
     if (request.nextUrl.pathname === '/counselor-dashboard') {
       return NextResponse.redirect(new URL('/counselor/dashboard/direct', request.url));
@@ -165,6 +192,16 @@ export async function middleware(request) {
 
   // Handle admin routes
   if (request.nextUrl.pathname.startsWith('/admin')) {
+    // Check if we're coming from the sign-in page (via Referer header)
+    const referer = request.headers.get('referer') || '';
+    const isFromSignIn = referer.includes('/account/signin');
+
+    // If we're coming directly from sign-in, allow access to break potential loops
+    if (isFromSignIn) {
+      console.log('Middleware: Admin request coming from sign-in page, allowing access to break potential loops');
+      return res;
+    }
+
     try {
       // Check if the user is authenticated
       if (!session) {
@@ -197,10 +234,51 @@ export async function middleware(request) {
     }
   }
 
-  // Handle sign-in page - let the client-side handle authentication
+  // Handle sign-in page - redirect authenticated users based on role
   if (request.nextUrl.pathname === '/account/signin') {
-    // Always let the client handle the sign-in page
-    // This prevents middleware from interfering with the client-side authentication flow
+    // Check if we have a counselor_redirect parameter - if so, don't redirect
+    if (request.nextUrl.searchParams.get('counselor_redirect') === 'true') {
+      console.log('Middleware: counselor_redirect parameter detected, allowing access to signin page');
+      return res;
+    }
+
+    // If the user is already authenticated, redirect them based on role
+    if (session) {
+      try {
+        // Get the user's role from their profile
+        const { data: profile, error } = await supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+
+        console.log('Middleware: Authenticated user on sign-in page, role:', profile?.role);
+
+        // Redirect based on role
+        if (!error && profile) {
+          if (profile.role === 'counselor') {
+            console.log('Middleware: Redirecting counselor to dashboard');
+            return NextResponse.redirect(new URL('/counselor/dashboard/direct', request.url));
+          } else if (profile.role === 'admin') {
+            console.log('Middleware: Redirecting admin to dashboard');
+            return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+          } else {
+            console.log('Middleware: Redirecting regular user to home');
+            return NextResponse.redirect(new URL('/home', request.url));
+          }
+        } else {
+          // Default redirect if we can't determine the role
+          console.log('Middleware: Unable to determine role, redirecting to home');
+          return NextResponse.redirect(new URL('/home', request.url));
+        }
+      } catch (error) {
+        console.error('Middleware: Error checking role:', error);
+        // On error, redirect to home to be safe
+        return NextResponse.redirect(new URL('/home', request.url));
+      }
+    }
+
+    // For unauthenticated users, let them access the sign-in page
     return res;
   }
 

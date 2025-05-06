@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/utils/useAuth';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -17,6 +17,12 @@ const SignIn = () => {
   const router = useRouter();
 
 
+
+  // Check for redirect parameters in URL
+  const redirectParam = searchParams.get('redirect');
+  const counselorRedirect = searchParams.get('counselor_redirect') === 'true';
+  console.log('Redirect parameter from URL:', redirectParam);
+  console.log('Counselor redirect flag:', counselorRedirect);
 
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) {
@@ -60,22 +66,28 @@ const SignIn = () => {
         .eq('id', data.user.id)
         .single();
 
-      // Determine redirect URL based on role
+      // Determine the redirect URL
       let redirectUrl = '/home'; // Default redirect
 
+      // Use role-based redirect
       if (profile && !profileError) {
         console.log('User role from database:', profile.role);
 
         if (profile.role === 'counselor') {
-          // Redirect to the green-themed counselor portal
           redirectUrl = '/counselor/dashboard/direct';
-          console.log('User is a counselor, redirecting to green counselor dashboard');
+          console.log('User is a counselor, redirecting to counselor dashboard');
         } else if (profile.role === 'admin') {
           redirectUrl = '/admin/dashboard';
           console.log('User is an admin, redirecting to admin dashboard');
         } else {
           console.log('User is a regular user, redirecting to home page');
         }
+      }
+
+      // Override with redirect parameter if available
+      if (redirectParam) {
+        redirectUrl = decodeURIComponent(redirectParam);
+        console.log('Using redirect parameter:', redirectUrl);
       } else {
         console.log('No profile found or error:', profileError);
 
@@ -111,28 +123,36 @@ const SignIn = () => {
         }
       }
 
+      console.log('Sign-in successful, role:', profile?.role || 'user');
       console.log('Redirecting to:', redirectUrl);
 
-      // Store the authentication in localStorage with the correct key format
-      // This is crucial for Supabase to recognize the session
-      localStorage.setItem('sb-euebogudyyeodzkvhyef-auth-token', JSON.stringify({
-        access_token: data.session.access_token,
-        refresh_token: data.session.refresh_token,
-        expires_at: Math.floor(Date.now() / 1000) + data.session.expires_in,
-        token_type: 'bearer',
-        user: data.user
-      }));
+      // CRITICAL STEP: Store the session data in localStorage
+      // This is what makes redirection work for regular users
+      // Use the hardcoded key that works for regular users
+      const storageKey = 'sb-euebogudyyeodzkvhyef-auth-token';
+      console.log('Storing session with key:', storageKey);
 
-      // Store the role in localStorage for easier access
-      localStorage.setItem('userRole', profile?.role || 'user');
+      try {
+        // Store the session data in the correct format
+        localStorage.setItem(storageKey, JSON.stringify({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+          expires_at: Math.floor(Date.now() / 1000) + data.session.expires_in,
+          token_type: 'bearer',
+          user: data.user
+        }));
 
-      // Wait a moment for the session to be established
-      console.log('Waiting for session to be established before redirecting...');
-      setTimeout(() => {
-        // Use href instead of replace for more reliable navigation
-        console.log('Redirecting now to:', redirectUrl);
-        window.location.href = redirectUrl;
-      }, 1000);
+        // Also store the user role for easier access
+        localStorage.setItem('userRole', profile?.role || 'user');
+
+        console.log('Session data stored successfully');
+      } catch (storageError) {
+        console.error('Error storing session data:', storageError);
+      }
+
+      // Use the redirectUrl directly
+      console.log('Final redirect URL:', redirectUrl);
+      window.location.href = redirectUrl;
     } catch (error) {
       console.error('Sign-in error:', error);
       setError(error.message || 'Failed to sign in. Please check your credentials.');
