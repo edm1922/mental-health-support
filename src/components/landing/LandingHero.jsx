@@ -17,21 +17,21 @@ export default function LandingHero() {
           <rect width="100%" height="100%" fill="url(#grid)" />
         </svg>
       </div>
-      
+
       {/* Decorative circles */}
       <div className="absolute top-0 right-0 -mt-24 -mr-24 h-96 w-96 rounded-full bg-blue-500 opacity-20 blur-3xl"></div>
       <div className="absolute bottom-0 left-0 -mb-24 -ml-24 h-96 w-96 rounded-full bg-indigo-600 opacity-20 blur-3xl"></div>
-      
+
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-36">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <motion.div 
+          <motion.div
             className="text-center lg:text-left"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
             <span className="inline-block px-4 py-1 rounded-full bg-white/10 backdrop-blur-sm text-white text-sm font-medium mb-4">
-              Mental Health Support Platform
+              Healmate Platform
             </span>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6">
               Take a Step Toward <span className="text-blue-300">Feeling Better</span>
@@ -39,27 +39,27 @@ export default function LandingHero() {
             <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto lg:mx-0">
               Talk to a counselor, check in with yourself, or connect with others who care. Your journey to better mental health starts here.
             </p>
-            
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-              <Link 
-                href="/account/signup" 
+              <Link
+                href="/account/signup"
                 className="px-8 py-3 rounded-xl bg-white text-blue-700 font-semibold hover:bg-blue-50 transition-colors shadow-lg shadow-blue-900/20 text-center"
               >
                 Sign Up Free
               </Link>
-              <Link 
-                href="/account/signin" 
+              <Link
+                href="/account/signin"
                 className="px-8 py-3 rounded-xl bg-blue-700/30 backdrop-blur-sm text-white font-semibold hover:bg-blue-700/50 transition-colors border border-white/20 text-center"
               >
                 Sign In
               </Link>
             </div>
-            
+
             <p className="mt-4 text-blue-200 text-sm">
               No credit card required. Start your journey today.
             </p>
           </motion.div>
-          
+
           <motion.div
             className="hidden lg:block"
             initial={{ opacity: 0, scale: 0.9 }}
@@ -76,9 +76,9 @@ export default function LandingHero() {
             </div>
           </motion.div>
         </div>
-        
+
         {/* Trust indicators */}
-        <motion.div 
+        <motion.div
           className="mt-16 text-center"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -113,7 +113,7 @@ export default function LandingHero() {
           </div>
         </motion.div>
       </div>
-      
+
       {/* Wave divider */}
       <div className="absolute bottom-0 left-0 right-0">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320" className="w-full h-auto">

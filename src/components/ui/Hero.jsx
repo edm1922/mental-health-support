@@ -9,7 +9,7 @@ export default function Hero({
   secondaryAction,
   wave = true,
   className = '',
-  tagline = 'Welcome to Mental Health Support'
+  tagline = 'Welcome to Healmate'
 }) {
   // Effect for SVG heart animation
   useEffect(() => {

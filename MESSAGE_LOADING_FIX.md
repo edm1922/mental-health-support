@@ -1,6 +1,6 @@
-# Message Loading Fix for Mental Health Support App
+# Message Loading Fix for Healmate App
 
-This document provides instructions on how to fix the message loading issue in the Mental Health Support application.
+This document provides instructions on how to fix the message loading issue in the Healmate application.
 
 ## Problem Diagnosis
 
@@ -50,17 +50,17 @@ We've created a solution that addresses these potential issues:
    BEGIN
      -- Log the user ID for debugging
      RAISE NOTICE 'Getting messages for user: %', user_uuid;
-     
+
      -- Check if the user exists in user_profiles
      IF NOT EXISTS (SELECT 1 FROM public.user_profiles WHERE id = user_uuid) THEN
        RAISE NOTICE 'User not found in user_profiles: %', user_uuid;
        -- Return empty result set instead of raising an exception
        RETURN;
      END IF;
-     
+
      -- Return messages for the user
      RETURN QUERY
-     SELECT 
+     SELECT
        sm.id,
        sm.session_id,
        sm.sender_id,
@@ -68,11 +68,11 @@ We've created a solution that addresses these potential issues:
        sm.message,
        sm.is_read,
        sm.created_at
-     FROM 
+     FROM
        public.session_messages sm
-     WHERE 
+     WHERE
        sm.sender_id = user_uuid OR sm.recipient_id = user_uuid
-     ORDER BY 
+     ORDER BY
        sm.created_at DESC;
    END;
    $$;
@@ -93,7 +93,7 @@ We've created a solution that addresses these potential issues:
      SELECT COUNT(*) INTO message_count
      FROM public.session_messages
      WHERE sender_id = user_uuid OR recipient_id = user_uuid;
-     
+
      RETURN message_count > 0;
    END;
    $$;
@@ -114,7 +114,7 @@ We've created a solution that addresses these potential issues:
      SELECT COUNT(*) INTO session_count
      FROM public.counseling_sessions
      WHERE counselor_id = user_uuid OR patient_id = user_uuid;
-     
+
      RETURN session_count > 0;
    END;
    $$;
@@ -135,19 +135,19 @@ We've created a solution that addresses these potential issues:
    AS $$
    BEGIN
      RETURN QUERY
-     SELECT 
+     SELECT
        n.nspname AS schema_name,
        c.relname AS table_name,
        (SELECT c.reltuples::bigint AS row_count)
-     FROM 
+     FROM
        pg_class c
-     JOIN 
+     JOIN
        pg_namespace n ON n.oid = c.relnamespace
-     WHERE 
+     WHERE
        c.relkind = 'r' -- Only tables
        AND n.nspname NOT IN ('pg_catalog', 'information_schema')
-     ORDER BY 
-       n.nspname, 
+     ORDER BY
+       n.nspname,
        c.relname;
    END;
    $$;

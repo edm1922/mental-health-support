@@ -1,4 +1,4 @@
-# Mental Health Support Platform
+# Healmate Platform
 
 A comprehensive web application for mental health support, counseling, and community engagement. This platform connects users with counselors, provides mental health check-ins, and offers a supportive community forum.
 
@@ -38,8 +38,8 @@ A comprehensive web application for mental health support, counseling, and commu
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/edm1922/mental-health-support.git
-cd mental-health-support
+git clone https://github.com/edm1922/healmate.git
+cd healmate
 ```
 
 2. Install dependencies:

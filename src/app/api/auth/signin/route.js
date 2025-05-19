@@ -61,9 +61,9 @@ export async function POST(request) {
     let redirectUrl = '/home';
 
     if (profile.role === 'counselor') {
-      redirectUrl = '/counselor/dashboard';
+      redirectUrl = '/counselor/dashboard/direct?no_redirect=true';
     } else if (profile.role === 'admin') {
-      redirectUrl = '/admin/dashboard';
+      redirectUrl = '/admin/dashboard?no_redirect=true';
     }
 
     console.log('User role:', profile.role);

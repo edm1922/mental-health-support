@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import Logo from './Logo';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -9,7 +10,9 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="col-span-1 md:col-span-2">
-            <h2 className="text-xl font-bold text-white mb-4">Mental Health Support</h2>
+            <div className="flex items-center gap-3 mb-4">
+              <Logo size="small" showText={true} textClassName="text-white text-xl font-bold" />
+            </div>
             <p className="text-gray-400 mb-4 max-w-md">
               Your journey to better mental health starts here. Connect with professional counselors and find the support you need.
             </p>
@@ -90,7 +93,7 @@ export default function Footer() {
 
         <div className="mt-12 pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-center items-center">
           <p className="text-base text-gray-400">
-            &copy; {currentYear} Mental Health Support. All rights reserved.
+            &copy; {currentYear} Healmate. All rights reserved.
           </p>
         </div>
       </div>

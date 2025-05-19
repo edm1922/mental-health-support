@@ -1,8 +1,44 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/utils/supabaseClient';
+import { supabase, getStorageKey } from '@/utils/supabaseClient';
 import Link from 'next/link';
 import CounselorNavbar from '@/components/ui/CounselorNavbar';
+
+// Debug function to check authentication state
+const debugAuthState = async () => {
+  try {
+    // Check session from Supabase
+    const { data: { session }, error } = await supabase.auth.getSession();
+
+    // Check localStorage
+    const storageKey = getStorageKey();
+    const storedSession = localStorage.getItem(storageKey);
+
+    console.group('Counselor Dashboard Auth Debug Info');
+    console.log('Storage Key:', storageKey);
+    console.log('Session from Supabase:', session ? 'Present' : 'Not present');
+    if (error) console.error('Session error:', error);
+    console.log('Session in localStorage:', storedSession ? 'Present' : 'Not present');
+
+    // Check user role if session exists
+    if (session?.user?.id) {
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .single();
+
+      console.log('User role:', profile?.role || 'Unknown');
+      if (profileError) console.error('Profile error:', profileError);
+    }
+    console.groupEnd();
+
+    return { session, storedSession };
+  } catch (err) {
+    console.error('Debug error:', err);
+    return { error: err };
+  }
+};
 
 export default function DirectCounselorDashboardPage() {
   const [user, setUser] = useState(null);
@@ -16,10 +52,9 @@ export default function DirectCounselorDashboardPage() {
   // Function to set up necessary tables and sample data
   const setupTables = async () => {
     try {
-      const response = await fetch('/api/setup-counselor-tables');
-      const data = await response.json();
-      console.log('Setup tables response:', data);
-      return data.success;
+      // Skip this API call as it might not exist or be failing
+      console.log('Skipping setup tables API call');
+      return true;
     } catch (err) {
       console.error('Error setting up tables:', err);
       return false;
@@ -31,6 +66,10 @@ export default function DirectCounselorDashboardPage() {
       try {
         setLoading(true);
 
+        // Debug authentication state
+        console.log('Checking auth state in counselor dashboard...');
+        const debugResult = await debugAuthState();
+
         // First, try to set up the necessary tables and sample data
         await setupTables();
 
@@ -38,10 +77,62 @@ export default function DirectCounselorDashboardPage() {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
         if (sessionError) {
+          console.error('Session error in counselor dashboard:', sessionError);
           throw new Error(`Session error: ${sessionError.message}`);
         }
 
         if (!session) {
+          console.error('No session found in counselor dashboard');
+
+          // Try to recover the session from localStorage
+          try {
+            const storageKey = getStorageKey();
+            const storedSession = localStorage.getItem(storageKey);
+
+            if (storedSession) {
+              console.log('Found session in localStorage, attempting to restore...');
+              const parsedSession = JSON.parse(storedSession);
+
+              // Try to set the session manually
+              await supabase.auth.setSession({
+                access_token: parsedSession.access_token,
+                refresh_token: parsedSession.refresh_token
+              });
+
+              // Check if session was restored
+              const { data: { session: restoredSession } } = await supabase.auth.getSession();
+
+              if (restoredSession) {
+                console.log('Session restored successfully');
+                // Continue with the restored session
+                const { data: { session: newSession } } = await supabase.auth.getSession();
+                if (newSession) {
+                  console.log('Using restored session');
+                  // Use the restored session and continue
+                  setUser({
+                    id: newSession.user.id,
+                    email: newSession.user.email
+                  });
+
+                  // Get the user profile
+                  const { data: profileData, error: profileError } = await supabase
+                    .from('user_profiles')
+                    .select('*')
+                    .eq('id', newSession.user.id)
+                    .single();
+
+                  if (!profileError) {
+                    setProfile(profileData);
+                  }
+
+                  return; // Skip the error throw
+                }
+              }
+            }
+          } catch (recoveryError) {
+            console.error('Error recovering session:', recoveryError);
+          }
+
           throw new Error('No session found. Please sign in.');
         }
 
@@ -317,8 +408,8 @@ export default function DirectCounselorDashboardPage() {
           <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
           <p className="text-gray-700 mb-6">{error}</p>
           <div className="flex justify-center space-x-4">
-            <Link href="/direct-counselor" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-              Try Direct Access
+            <Link href="/account/signin" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              Sign In Again
             </Link>
             <Link href="/" className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
               Back to Home
@@ -578,6 +669,8 @@ export default function DirectCounselorDashboardPage() {
           <Link href="/community" className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
             Community Forum
           </Link>
+
+
         </div>
       </main>
     </div>

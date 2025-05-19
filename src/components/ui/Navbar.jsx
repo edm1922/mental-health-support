@@ -6,6 +6,7 @@ import { useAuth } from '@/utils/useAuth';
 import SearchBar from './SearchBar';
 import NotificationBell from './NotificationBell';
 import { useNotification } from '@/context/NotificationContext';
+import Logo from './Logo';
 
 export default function Navbar({ transparent = false }) {
   const { data: user } = useUser();
@@ -97,8 +98,8 @@ export default function Navbar({ transparent = false }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Link href="/home" className={`flex-shrink-0 flex items-center font-bold text-lg md:text-xl truncate max-w-[180px] sm:max-w-none ${logoColor}`}>
-              Mental Health Support
+            <Link href="/home" className={`flex-shrink-0 flex items-center gap-2 font-bold text-lg md:text-xl truncate max-w-[180px] sm:max-w-none ${logoColor}`}>
+              <Logo size="small" showText={true} textClassName={logoColor} />
             </Link>
             <div className="hidden md:ml-8 md:flex md:space-x-6">
               <Link href="/home" className={`px-3 py-2 rounded-md text-sm font-medium ${textColor} hover:text-primary-600 transition-colors`}>

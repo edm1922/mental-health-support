@@ -1,6 +1,6 @@
-# Mental Health Support Application Database Schema
+# Healmate Application Database Schema
 
-This document outlines the database schema for the Mental Health Support application. It serves as a reference for developers and can be used to quickly restore the database after resets.
+This document outlines the database schema for the Healmate application. It serves as a reference for developers and can be used to quickly restore the database after resets.
 
 ## Tables Overview
 

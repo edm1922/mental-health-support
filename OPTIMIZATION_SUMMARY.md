@@ -1,6 +1,6 @@
 # Optimization Summary
 
-This document summarizes the optimizations made to the Mental Health Support application.
+This document summarizes the optimizations made to the Healmate application.
 
 ## UI Improvements
 

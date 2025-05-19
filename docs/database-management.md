@@ -1,6 +1,6 @@
 # Database Management Guide
 
-This guide explains how to manage the database schema for the Mental Health Support application.
+This guide explains how to manage the database schema for the Healmate application.
 
 ## Overview
 
@@ -76,15 +76,15 @@ If you need to manually fix the schema, you can run SQL commands in the Supabase
 
 ```sql
 -- Add is_approved column to discussion_posts
-ALTER TABLE public.discussion_posts 
+ALTER TABLE public.discussion_posts
 ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT FALSE;
 
 -- Add approved_by column
-ALTER TABLE public.discussion_posts 
+ALTER TABLE public.discussion_posts
 ADD COLUMN IF NOT EXISTS approved_by UUID;
 
 -- Add approved_at column
-ALTER TABLE public.discussion_posts 
+ALTER TABLE public.discussion_posts
 ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP WITH TIME ZONE;
 ```
 

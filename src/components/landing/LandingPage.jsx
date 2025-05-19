@@ -3,6 +3,7 @@ import React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import CounselorRecruitmentCTA from './CounselorRecruitmentCTA';
+import Logo from '@/components/ui/Logo';
 
 // Simple landing page navbar with minimal navigation
 const LandingNavbar = () => {
@@ -10,8 +11,8 @@ const LandingNavbar = () => {
     <nav className="absolute top-0 left-0 right-0 z-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-6">
-          <div className="flex-shrink-0">
-            <span className="text-white text-xl font-bold">Mental Health Support</span>
+          <div className="flex-shrink-0 flex items-center gap-2">
+            <Logo size="small" showText={true} textClassName="text-white text-xl font-bold" />
           </div>
           <div className="flex items-center space-x-2 md:space-x-6">
             <Link
@@ -347,7 +348,9 @@ const Footer = () => (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
         <div>
-          <h3 className="text-white text-lg font-semibold mb-4">Mental Health Support</h3>
+          <div className="flex items-center gap-2 mb-4">
+            <Logo size="small" showText={true} textClassName="text-white text-lg font-semibold" />
+          </div>
           <p className="text-sm">
             Your partner on the journey to better mental well-being.
           </p>
@@ -394,7 +397,7 @@ const Footer = () => (
         </div>
       </div>
       <div className="mt-12 pt-8 border-t border-gray-800 text-sm">
-        <p>© {new Date().getFullYear()} Mental Health Support. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} Healmate. All rights reserved.</p>
       </div>
     </div>
   </footer>

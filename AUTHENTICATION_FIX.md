@@ -1,6 +1,6 @@
-# Authentication Fix for Mental Health Support App
+# Authentication Fix for Healmate App
 
-This document provides instructions on how to fix authentication issues in the Mental Health Support application, particularly related to the mismatch between UUID and bigint ID types.
+This document provides instructions on how to fix authentication issues in the Healmate application, particularly related to the mismatch between UUID and bigint ID types.
 
 ## Problem Description
 

@@ -361,7 +361,7 @@ const SignUp = () => {
       </div>
 
       <div className="py-4 text-center text-gray-500 text-sm footer">
-        <p>© {new Date().getFullYear()} Mental Health Support. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} Healmate. All rights reserved.</p>
       </div>
     </div>
   );

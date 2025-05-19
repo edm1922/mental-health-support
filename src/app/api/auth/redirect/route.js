@@ -9,22 +9,22 @@ export async function POST(request) {
     // Get the request body
     const body = await request.json();
     const { email } = body;
-    
+
     console.log('Redirect API called for email:', email);
-    
+
     // Determine the redirect URL based on the email
     let redirectUrl = '/home'; // Default redirect
-    
+
     if (email === 'counselor1@example.com') {
       console.log('Redirecting counselor to dashboard');
-      redirectUrl = '/counselor/dashboard';
+      redirectUrl = '/counselor/dashboard/direct?no_redirect=true';
     } else if (email === 'edronmaguale635@gmail.com') {
       console.log('Redirecting admin to dashboard');
-      redirectUrl = '/admin/dashboard';
+      redirectUrl = '/admin/dashboard?no_redirect=true';
     }
-    
+
     console.log('Final redirect URL:', redirectUrl);
-    
+
     // Return the redirect URL
     return NextResponse.json({ redirectUrl });
   } catch (error) {
